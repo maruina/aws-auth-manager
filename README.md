@@ -33,8 +33,7 @@ spec:
 
 ## TODO
 
-- Add object `status`
 - Add validation webhook for `roleArn` and `userArn`
-- More test cases
+- More test cases?
 - Helm chart
 - Release
