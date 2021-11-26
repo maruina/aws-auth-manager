@@ -58,4 +58,4 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-        if: github.ref == "refs/heads/main"
+        if: github.event_name != 'pull_request'
