@@ -1,0 +1,20 @@
+# permissions for end users to view awsauthitems.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: awsauthitem-viewer-role
+rules:
+- apiGroups:
+  - aws.maruina.k8s
+  resources:
+  - awsauthitems
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - aws.maruina.k8s
+  resources:
+  - awsauthitems/status
+  verbs:
+  - get
