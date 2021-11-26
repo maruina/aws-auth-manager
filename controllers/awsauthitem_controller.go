@@ -148,6 +148,7 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 					"MapRoles": "",
 				},
 			}
+
 			if createErr := r.Create(ctx, &authCm); createErr != nil {
 				log.Error(createErr, "unable to created aws-auth configmap")
 				return ctrl.Result{Requeue: true}, createErr

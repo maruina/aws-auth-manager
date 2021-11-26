@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/fluxcd/pkg/apis/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,10 +25,10 @@ const AWSAuthFinalizer = "finalizer.aws.maruina.k8s"
 
 // AWSAuthItemSpec defines the desired state of AWSAuthItem
 type AWSAuthItemSpec struct {
-	// MapRoles holds a list of MapRoleItem objects
+	// MapRoles holds a list of MapRoleItem
 	MapRoles []MapRoleItem `json:"mapRoles,omitempty"`
 
-	// MapUsers holds a list of MapUserItem objects
+	// MapUsers holds a list of MapUserItem
 	MapUsers []MapUserItem `json:"mapUsers,omitempty"`
 }
 
@@ -59,9 +60,37 @@ type AWSAuthItemStatus struct {
 	// +kubebuilder:validation:Optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
-	// Conditions holds the conditions for the AWS Auth Item.
-	// +optional
+	// Conditions holds the conditions for the AWSAuthItem.
+	// +kubebuilder:validation:Optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// AWSAuthItemProgressing registers progress toward
+// reconciling the given AWSAuthItem by setting the meta.ReadyCondition to
+// 'Unknown' for meta.ProgressingReason.
+func AWSAuthItemProgressing(item AWSAuthItem) AWSAuthItem {
+	item.Status.Conditions = []metav1.Condition{}
+	meta.SetResourceCondition(&item, meta.ReadyCondition, metav1.ConditionUnknown, meta.ProgressingReason,
+		"Reconciliation in progress")
+	return item
+}
+
+// AWSAuthItemNotReady registers a failed reconciliation of the given AWSAuthItem.
+func AWSAuthItemNotReady(item AWSAuthItem, reason, message string) AWSAuthItem {
+	meta.SetResourceCondition(&item, meta.ReadyCondition, metav1.ConditionFalse, reason, message)
+	return item
+}
+
+// AWSAuthItemReady registers a successful reconciliation of the given AWSAuthItem.
+func AWSAuthItemReady(item AWSAuthItem) AWSAuthItem {
+	meta.SetResourceCondition(&item, meta.ReadyCondition, metav1.ConditionTrue, meta.ReconciliationSucceededReason,
+		"Release reconciliation succeeded")
+	return item
+}
+
+// GetStatusConditions returns a pointer to the Status.Conditions slice
+func (in *AWSAuthItem) GetStatusConditions() *[]metav1.Condition {
+	return &in.Status.Conditions
 }
 
 //+kubebuilder:object:root=true
