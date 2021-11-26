@@ -3,9 +3,11 @@ package controllers
 import (
 	"time"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -82,5 +84,18 @@ var _ = Describe("AWSAuth controller", func() {
 
 			return res.Spec.MapRoles
 		}).Should(Equal(roleItem.Spec.MapRoles))
+
+		By("Setting the AWSAuthItems condition Ready")
+		Eventually(func() bool {
+			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&userItem), &userItem)
+
+			return apimeta.IsStatusConditionTrue(*userItem.GetStatusConditions(), meta.ReadyCondition)
+		}).Should(BeTrue())
+
+		Eventually(func() bool {
+			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&roleItem), &roleItem)
+
+			return apimeta.IsStatusConditionTrue(*roleItem.GetStatusConditions(), meta.ReadyCondition)
+		}).Should(BeTrue())
 	})
 })

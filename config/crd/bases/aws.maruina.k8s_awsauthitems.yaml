@@ -37,7 +37,7 @@ spec:
             description: AWSAuthItemSpec defines the desired state of AWSAuthItem
             properties:
               mapRoles:
-                description: MapRoles holds a list of MapRoleItem objects
+                description: MapRoles holds a list of MapRoleItem
                 items:
                   properties:
                     groups:
@@ -60,7 +60,7 @@ spec:
                   type: object
                 type: array
               mapUsers:
-                description: MapUsers holds a list of MapUserItem objects
+                description: MapUsers holds a list of MapUserItem
                 items:
                   properties:
                     groups:
@@ -87,7 +87,7 @@ spec:
             description: AWSAuthItemStatus defines the observed state of AWSAuthItem
             properties:
               conditions:
-                description: Conditions holds the conditions for the AWSAuthItem object.
+                description: Conditions holds the conditions for the AWSAuthItem.
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct

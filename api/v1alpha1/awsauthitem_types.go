@@ -84,7 +84,7 @@ func AWSAuthItemNotReady(item AWSAuthItem, reason, message string) AWSAuthItem {
 // AWSAuthItemReady registers a successful reconciliation of the given AWSAuthItem.
 func AWSAuthItemReady(item AWSAuthItem) AWSAuthItem {
 	meta.SetResourceCondition(&item, meta.ReadyCondition, metav1.ConditionTrue, meta.ReconciliationSucceededReason,
-		"Release reconciliation succeeded")
+		"Item reconciliation succeeded")
 	return item
 }
 

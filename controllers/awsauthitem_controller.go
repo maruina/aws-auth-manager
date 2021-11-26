@@ -66,7 +66,7 @@ func (r *AWSAuthItemReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	log := log.FromContext(ctx)
 	log.Info("reconciliation started")
 
-	// Get the AWSAuthItem object
+	// Get the AWSAuthItem
 	var item awsauthv1alpha1.AWSAuthItem
 	if err := r.Get(ctx, req.NamespacedName, &item); err != nil {
 		log.Error(err, "unable to fetch the AWSAuthItem object")
@@ -87,8 +87,15 @@ func (r *AWSAuthItemReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return r.reconcileDelete(ctx, item)
 	}
 
-	// Reconcile the object
-	reconciledResult, reconciledError := r.reconcile(ctx, item)
+	// Reconcile
+	reconciledItem, reconciledResult, reconciledError := r.reconcile(ctx, item)
+
+	// Update status after reconciliation.
+	if updateStatusErr := r.patchStatus(ctx, reconciledItem); updateStatusErr != nil {
+		log.Error(updateStatusErr, "unable to update status after reconciliation")
+		return ctrl.Result{Requeue: true}, updateStatusErr
+	}
+
 	return reconciledResult, reconciledError
 }
 
@@ -129,8 +136,14 @@ func (r *AWSAuthItemReconciler) findObjectsForConfigMap(configMap client.Object)
 	return requests
 }
 
-func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) (ctrl.Result, error) {
+func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) (awsauthv1alpha1.AWSAuthItem, ctrl.Result, error) {
 	log := log.FromContext(ctx)
+
+	// Observe AWSAuthItem generation
+	if item.Status.ObservedGeneration != item.Generation {
+		item.Status.ObservedGeneration = item.Generation
+		return awsauthv1alpha1.AWSAuthItemProgressing(item), ctrl.Result{Requeue: true}, nil
+	}
 
 	// Get the aws-auth configMap
 	var authCm corev1.ConfigMap
@@ -151,20 +164,23 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 
 			if createErr := r.Create(ctx, &authCm); createErr != nil {
 				log.Error(createErr, "unable to created aws-auth configmap")
-				return ctrl.Result{Requeue: true}, createErr
+				return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason, err.Error()),
+					ctrl.Result{Requeue: true}, createErr
 			}
 		} else {
 			log.Error(err, "unable to fetch the aws-auth ConfigMap object")
-			return ctrl.Result{Requeue: true}, err
+			return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.GetAwsAuthConfigMapFailedReason, err.Error()),
+				ctrl.Result{Requeue: true}, err
 		}
 
 	}
 
-	// Get all the AWSAuthItem objects
+	// Get all the AWSAuthItem
 	var itemList awsauthv1alpha1.AWSAuthItemList
 	if err := r.List(ctx, &itemList); err != nil {
 		log.Error(err, "unable to list the AWSAuthItem objects")
-		return ctrl.Result{Requeue: true}, err
+		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.ListAWSAuthItemFailedReason, err.Error()),
+			ctrl.Result{Requeue: true}, err
 	}
 
 	// Get all the mapRoles and mapUsers
@@ -179,13 +195,15 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	mapRolesYaml, err := yaml.Marshal(mapRoles)
 	if err != nil {
 		log.Error(err, "unable to marshal mapRoles")
-		return ctrl.Result{Requeue: true}, err
+		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.MarshalMapRolesFailedReason, err.Error()),
+			ctrl.Result{Requeue: true}, err
 	}
 
 	mapUsersYaml, err := yaml.Marshal(mapUsers)
 	if err != nil {
 		log.Error(err, "unable to marshal mapUsers")
-		return ctrl.Result{Requeue: true}, err
+		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.MarshalMapUsersFailedReason, err.Error()),
+			ctrl.Result{Requeue: true}, err
 	}
 
 	// Calculate hash
@@ -216,11 +234,12 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 
 		if err := r.Update(ctx, &authCm); err != nil {
 			log.Error(err, "unable to update the aws-auth ConfigMap")
-			return ctrl.Result{Requeue: true}, err
+			return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.UpdateAwsAuthConfigMapFailedReason, err.Error()),
+				ctrl.Result{Requeue: true}, err
 		}
 	}
 
-	return ctrl.Result{}, nil
+	return awsauthv1alpha1.AWSAuthItemReady(item), ctrl.Result{}, nil
 }
 
 func (r *AWSAuthItemReconciler) reconcileDelete(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) (ctrl.Result, error) {
@@ -253,4 +272,18 @@ func (r *AWSAuthItemReconciler) reconcileDelete(ctx context.Context, item awsaut
 	}
 
 	return ctrl.Result{}, nil
+}
+
+//patchStatus updates the AWSAuthItem using a MergeFrom strategy
+func (r *AWSAuthItemReconciler) patchStatus(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) error {
+	var latest awsauthv1alpha1.AWSAuthItem
+
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&item), &latest); err != nil {
+		return err
+	}
+
+	patch := client.MergeFrom(latest.DeepCopy())
+	latest.Status = item.Status
+
+	return r.Client.Status().Patch(ctx, &latest, patch)
 }
