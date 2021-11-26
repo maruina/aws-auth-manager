@@ -59,15 +59,16 @@ vet: ## Run go vet against code.
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
-.PHONY: e2e
-e2e: ## Run against a kind cluster
+.PHONY: setup-e2e
+setup-e2e:
 	kind create cluster --name aws-auth-manager-e2e
-	kubectl apply -f config/crd/bases/aws.maruina.k8s_awsauthitems.yaml
-	kubectl apply -f hack/example.yaml
-	make run
 
-.PHONY: delete-e2e
-delete-e2e:
+.PHONY: e2e
+e2e:
+	AWS_AUTH_MANAGER_USE_EXISTING_CLUSTER=true make test
+
+.PHONY: teardown-e2e
+teardown-e2e:
 	kind delete cluster --name aws-auth-manager-e2e
 
 ##@ Build
