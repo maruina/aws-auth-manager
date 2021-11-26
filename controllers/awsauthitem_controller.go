@@ -191,15 +191,19 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	rolesHasher := sha256.New()
 	rolesHasher.Write([]byte(mapRolesYaml))
 	rolesHash := hex.EncodeToString(rolesHasher.Sum(nil))
-	latestRolesHash := authCm.ObjectMeta.Annotations[MapRolesAnnotation]
+	rolesHasher.Reset()
+	rolesHasher.Write([]byte(authCm.Data["MapRoles"]))
+	currentRolesHash := hex.EncodeToString(rolesHasher.Sum(nil))
 
 	usersHasher := sha256.New()
 	usersHasher.Write([]byte(mapUsersYaml))
 	usersHash := hex.EncodeToString(usersHasher.Sum(nil))
-	latestUsersHash := authCm.ObjectMeta.Annotations[MapUsersAnnotation]
+	usersHasher.Reset()
+	usersHasher.Write([]byte(authCm.Data["MapUsers"]))
+	currentUsersHash := hex.EncodeToString(usersHasher.Sum(nil))
 
 	// If the hash is different we need to update the configmap
-	if rolesHash != latestRolesHash || usersHash != latestUsersHash {
+	if rolesHash != currentRolesHash || usersHash != currentUsersHash {
 		authCm.Data["MapRoles"] = string(mapRolesYaml)
 		authCm.Data["MapUsers"] = string(mapUsersYaml)
 
