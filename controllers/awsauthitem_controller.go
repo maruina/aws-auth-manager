@@ -208,17 +208,37 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 
 	// Calculate hash
 	rolesHasher := sha256.New()
-	rolesHasher.Write([]byte(mapRolesYaml))
+	if _, err := rolesHasher.Write([]byte(mapRolesYaml)); err != nil {
+		log.Error(err, "unable to hash marshalled mapRoles")
+		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.HashMapRolesFailedReason, err.Error()),
+			ctrl.Result{Requeue: true}, err
+	}
 	rolesHash := hex.EncodeToString(rolesHasher.Sum(nil))
+
 	rolesHasher.Reset()
-	rolesHasher.Write([]byte(authCm.Data["MapRoles"]))
+
+	if _, err := rolesHasher.Write([]byte(authCm.Data["MapRoles"])); err != nil {
+		log.Error(err, "unable to hash MapRoles from configmap")
+		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.HashMapRolesFailedReason, err.Error()),
+			ctrl.Result{Requeue: true}, err
+	}
 	currentRolesHash := hex.EncodeToString(rolesHasher.Sum(nil))
 
 	usersHasher := sha256.New()
-	usersHasher.Write([]byte(mapUsersYaml))
+	if _, err := usersHasher.Write([]byte(mapUsersYaml)); err != nil {
+		log.Error(err, "unable to hash marshalled mapUsers")
+		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.HashMapUsersFailedReason, err.Error()),
+			ctrl.Result{Requeue: true}, err
+	}
 	usersHash := hex.EncodeToString(usersHasher.Sum(nil))
+
 	usersHasher.Reset()
-	usersHasher.Write([]byte(authCm.Data["MapUsers"]))
+
+	if _, err := usersHasher.Write([]byte(authCm.Data["MapUsers"])); err != nil {
+		log.Error(err, "unable to hash MapUsers from configmap")
+		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.HashMapUsersFailedReason, err.Error()),
+			ctrl.Result{Requeue: true}, err
+	}
 	currentUsersHash := hex.EncodeToString(usersHasher.Sum(nil))
 
 	// If the hash is different we need to update the configmap

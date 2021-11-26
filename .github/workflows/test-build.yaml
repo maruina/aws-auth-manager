@@ -1,0 +1,60 @@
+name: Test and Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-build:
+    name: test-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.3.4
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ^1.16
+
+      - name: Install kubebuilder
+        run: |
+          curl -L -o kubebuilder https://go.kubebuilder.io/dl/latest/$(go env GOOS)/$(go env GOARCH)
+          chmod +x kubebuilder
+          mv kubebuilder /usr/local/bin/
+
+      - name: Create k8s Kind cluster
+        uses: helm/kind-action@v1.2.0
+
+      - name: Run tests against k8s Kind cluster
+        run: make e2e
+
+      - name: Build
+        run: make build
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          # list of Docker images to use as base name for tags
+          images: |
+            ghcr.io/maruina/aws-auth-manager
+          # generate Docker tags based on the following events/attributes
+          tags: |
+            type=ref,event=pr
+            type=semver,pattern={{raw}}
+            type=sha
+
+      - name: Login to GitHub Packages
+        uses: docker/login-action@v1.10.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish a docker image
+        uses: docker/build-push-action@v2.6.1
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
