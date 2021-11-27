@@ -129,5 +129,26 @@ var _ = Describe("AWSAuth controller", func() {
 
 			return apimeta.IsStatusConditionTrue(*mixedItem.GetStatusConditions(), meta.ReadyCondition)
 		}).Should(BeTrue())
+
+		By("Deleting a AWSAuthItem")
+		Expect(k8sClient.Delete(ctx, &mixedItem)).To(Succeed())
+
+		Eventually(func() []awsauthv1alpha1.MapUserItem {
+			var res awsauthv1alpha1.AWSAuthItem
+
+			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&authCm), &authCm)
+			_ = yaml.Unmarshal([]byte(authCm.Data["MapUsers"]), &res.Spec.MapUsers)
+
+			return res.Spec.MapUsers
+		}).Should(Equal(userItem.Spec.MapUsers))
+
+		Eventually(func() []awsauthv1alpha1.MapRoleItem {
+			var res awsauthv1alpha1.AWSAuthItem
+
+			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&authCm), &authCm)
+			_ = yaml.Unmarshal([]byte(authCm.Data["MapRoles"]), &res.Spec.MapRoles)
+
+			return res.Spec.MapRoles
+		}).Should(Equal(roleItem.Spec.MapRoles))
 	})
 })
