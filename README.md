@@ -33,7 +33,11 @@ spec:
 
 ## TODO
 
-- Add validation webhook for `roleArn` and `userArn`
-- More test cases?
-- Helm chart
+- Install via Kustomize single file
+- Install via Helm Chart
 - Release
+- Validation webhook:
+  - `roleArn`
+  - `userArn`
+  - at least one entry for system nodes
+  - duplicated entries
