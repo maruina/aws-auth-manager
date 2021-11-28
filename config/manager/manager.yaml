@@ -31,7 +31,8 @@ spec:
         - /manager
         args:
         - --leader-elect
-        image: ghcr.io/maruina/aws-auth-manager:latest
+        image: controller:latest
+        imagePullPolicy: IfNotPresent
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
