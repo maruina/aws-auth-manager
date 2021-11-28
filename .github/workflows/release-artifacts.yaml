@@ -36,3 +36,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Generate release manifests
+        run: |
+          mkdir -p config/release
+          kustomize build ./config/crd > ./config/release/aws-auth-manager.crds.yaml
+          kustomize build ./config/manager > ./config/release/aws-auth-manager.deployment.yaml
