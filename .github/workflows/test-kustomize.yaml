@@ -24,15 +24,8 @@ jobs:
         with:
           cluster_name: kind
 
-      - name: Test kind
-        run: kind get nodes
-
       - name: Build and push
         run: make docker-build
-        # uses: docker/build-push-action@v2.7.0
-        # with:
-        #   push: false
-        #   tags: controller:kind
 
       - name: Push the image to Kind cluster
         run: kind load docker-image controller:kind
