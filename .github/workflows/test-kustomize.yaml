@@ -19,8 +19,13 @@ jobs:
         with:
           go-version: ^1.16
 
-      - name: Create k8s Kind cluster
+      - name: Create kind cluster
         uses: helm/kind-action@v1.2.0
+        with:
+          cluster_name: kind
+
+      - name: Test kind
+        run: kind get nodes
 
       - name: Build and push
         run: make docker-build
@@ -30,7 +35,7 @@ jobs:
         #   tags: controller:kind
 
       - name: Push the image to Kind cluster
-        run: kind load docker-image controller:kind --name kind-chart-testing
+        run: kind load docker-image controller:kind
 
       - name: Install CRDs
         run: make install
