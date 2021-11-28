@@ -10,6 +10,8 @@ jobs:
   test-build:
     name: test-build
     runs-on: ubuntu-latest
+    env:
+      IMG: controller:kind
     steps:
       - uses: actions/checkout@v2.4.0
 
@@ -21,19 +23,20 @@ jobs:
         uses: helm/kind-action@v1.2.0
 
       - name: Build and push
-        uses: docker/build-push-action@v2.7.0
-        with:
-          push: false
-          tags: controller:kind
+        run: make docker-build
+        # uses: docker/build-push-action@v2.7.0
+        # with:
+        #   push: false
+        #   tags: controller:kind
 
-      - name: Push the image to kind
-        run: kind load docker-image controller:kind
+      - name: Push the image to Kind cluster
+        run: kind load docker-image controller:kind --name kind-chart-testing
 
       - name: Install CRDs
         run: make install
 
       - name: Install manifests
-        run: IMG=controller:kind make deploy
+        run: make deploy
 
       - name: Deploy example AWSAuthItem
         run: kubectl apply -f config/samples/awsauthitem.yaml
