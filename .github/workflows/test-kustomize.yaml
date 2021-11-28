@@ -38,3 +38,18 @@ jobs:
 
       - name: Deploy example AWSAuthItem
         run: kubectl apply -f config/samples/awsauthitem.yaml
+
+      - name: Test AWSAuthItem
+        run: |
+          echo -n ">>> Waiting for expected conditions"
+          count=0
+          until [ 'true' == "$( kubectl get awsauthitems.aws.maruina.k8s awsauthitem-sample -o json | jq 'try .status.conditions | map( { (.type): .status } ) | add | .Ready=="True"' )" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 6 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
