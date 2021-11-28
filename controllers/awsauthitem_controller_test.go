@@ -25,8 +25,8 @@ var _ = Describe("AWSAuth controller", func() {
 		},
 	}
 
-	It("Should update the aws-auth ConfigMap", func() {
-		By("Creating two AWSAuthItem objects")
+	It("Should manage the aws-auth ConfigMap", func() {
+		By("Creating three AWSAuthItem objects")
 		userItem := awsauthv1alpha1.AWSAuthItem{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "user-item",
@@ -66,7 +66,73 @@ var _ = Describe("AWSAuth controller", func() {
 		}
 		Expect(k8sClient.Create(ctx, &roleItem)).To(Succeed())
 
-		By("Comparing the data from the configmap with the two AWSAuthItem objects")
+		mixedItem := awsauthv1alpha1.AWSAuthItem{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "mixed-item",
+				Namespace: AWSAuthMapNamespace,
+			},
+			Spec: awsauthv1alpha1.AWSAuthItemSpec{
+				MapRoles: []awsauthv1alpha1.MapRoleItem{
+					{
+						RoleArn:  "arn:aws:iam::111122223333:role/eks-developer-role",
+						Username: "eks-developer",
+						Groups:   []string{"tenant"},
+					},
+				},
+				MapUsers: []awsauthv1alpha1.MapUserItem{
+					{
+						UserArn:  "arn:aws:iam::111122223333:role/eks-user",
+						Username: "eks-user-{{Session}}",
+						Groups:   []string{"edit", "view"},
+					},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, &mixedItem)).To(Succeed())
+
+		// Check if the aws-auth configmap has the desired data
+		expectedMapUsers := append(userItem.Spec.MapUsers, mixedItem.Spec.MapUsers...)
+		Eventually(func() []awsauthv1alpha1.MapUserItem {
+			var res awsauthv1alpha1.AWSAuthItem
+
+			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&authCm), &authCm)
+			_ = yaml.Unmarshal([]byte(authCm.Data["MapUsers"]), &res.Spec.MapUsers)
+
+			return res.Spec.MapUsers
+		}).Should(Equal(expectedMapUsers))
+
+		expectedMapRoles := append(roleItem.Spec.MapRoles, mixedItem.Spec.MapRoles...)
+		Eventually(func() []awsauthv1alpha1.MapRoleItem {
+			var res awsauthv1alpha1.AWSAuthItem
+
+			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&authCm), &authCm)
+			_ = yaml.Unmarshal([]byte(authCm.Data["MapRoles"]), &res.Spec.MapRoles)
+
+			return res.Spec.MapRoles
+		}).Should(Equal(expectedMapRoles))
+
+		// Check if the CRDs has the condition Ready
+		Eventually(func() bool {
+			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&userItem), &userItem)
+
+			return apimeta.IsStatusConditionTrue(*userItem.GetStatusConditions(), meta.ReadyCondition)
+		}).Should(BeTrue())
+
+		Eventually(func() bool {
+			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&roleItem), &roleItem)
+
+			return apimeta.IsStatusConditionTrue(*roleItem.GetStatusConditions(), meta.ReadyCondition)
+		}).Should(BeTrue())
+
+		Eventually(func() bool {
+			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&mixedItem), &mixedItem)
+
+			return apimeta.IsStatusConditionTrue(*mixedItem.GetStatusConditions(), meta.ReadyCondition)
+		}).Should(BeTrue())
+
+		By("Deleting a AWSAuthItem")
+		Expect(k8sClient.Delete(ctx, &mixedItem)).To(Succeed())
+
 		Eventually(func() []awsauthv1alpha1.MapUserItem {
 			var res awsauthv1alpha1.AWSAuthItem
 
@@ -84,18 +150,5 @@ var _ = Describe("AWSAuth controller", func() {
 
 			return res.Spec.MapRoles
 		}).Should(Equal(roleItem.Spec.MapRoles))
-
-		By("Setting the AWSAuthItems condition Ready")
-		Eventually(func() bool {
-			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&userItem), &userItem)
-
-			return apimeta.IsStatusConditionTrue(*userItem.GetStatusConditions(), meta.ReadyCondition)
-		}).Should(BeTrue())
-
-		Eventually(func() bool {
-			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&roleItem), &roleItem)
-
-			return apimeta.IsStatusConditionTrue(*roleItem.GetStatusConditions(), meta.ReadyCondition)
-		}).Should(BeTrue())
 	})
 })
