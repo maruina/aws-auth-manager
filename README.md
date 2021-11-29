@@ -34,8 +34,7 @@ spec:
 ## Install
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/maruina/aws-auth-manager/main/config/release/install-crds.yaml
-kubectl apply -f https://raw.githubusercontent.com/maruina/aws-auth-manager/main/config/release/install-operator.yaml
+kubectl apply -f https://raw.githubusercontent.com/maruina/aws-auth-manager/main/config/release/install.yaml
 ```
 
 ## TODO
