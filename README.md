@@ -41,7 +41,6 @@ kubectl apply -f https://raw.githubusercontent.com/maruina/aws-auth-manager/main
 ## TODO
 
 - Install via Helm Chart
-- Release
 - Validation webhook:
   - `roleArn`
   - `userArn`
