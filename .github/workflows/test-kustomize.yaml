@@ -8,7 +8,7 @@ on:
 
 jobs:
   test-build:
-    name: test-build
+    name: test-kustomize-build
     runs-on: ubuntu-latest
     env:
       IMG: controller:kind

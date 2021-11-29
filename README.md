@@ -31,9 +31,15 @@ spec:
         - system:masters
 ```
 
+## Install
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/maruina/aws-auth-manager/main/config/release/install-crds.yaml
+kubectl apply -f https://raw.githubusercontent.com/maruina/aws-auth-manager/main/config/release/install-operator.yaml
+```
+
 ## TODO
 
-- Install via Kustomize single file
 - Install via Helm Chart
 - Release
 - Validation webhook:
