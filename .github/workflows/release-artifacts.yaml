@@ -36,3 +36,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Generate release manifests
+        run: |
+          kustomize build config/crd > config/release/install-crds.yaml
+          kustomize build config/manager > config/release/install-operator.yaml

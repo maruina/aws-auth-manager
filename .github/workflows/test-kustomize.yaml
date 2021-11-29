@@ -1,0 +1,55 @@
+name: Test Kustomize Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-build:
+    name: test-kustomize-build
+    runs-on: ubuntu-latest
+    env:
+      IMG: controller:kind
+    steps:
+      - uses: actions/checkout@v2.4.0
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ^1.16
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1.2.0
+        with:
+          cluster_name: kind
+
+      - name: Build and push
+        run: make docker-build
+
+      - name: Push the image to Kind cluster
+        run: kind load docker-image controller:kind
+
+      - name: Install CRDs
+        run: make install
+
+      - name: Install manifests
+        run: make deploy
+
+      - name: Deploy example AWSAuthItem
+        run: kubectl apply -f config/samples/awsauthitem.yaml
+
+      - name: Test AWSAuthItem
+        run: |
+          echo -n ">>> Waiting for expected conditions"
+          count=0
+          until [ 'true' == "$( kubectl get awsauthitems.aws.maruina.k8s awsauthitem-sample -o json | jq 'try .status.conditions | map( { (.type): .status } ) | add | .Ready=="True"' )" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 6 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
