@@ -76,13 +76,13 @@ func (r *AWSAuthItem) validateAWSAuthItem() error {
 func (r *AWSAuthItem) validateArn() *field.Error {
 	for _, mapRole := range r.Spec.MapRoles {
 		if !arn.IsARN(mapRole.RoleArn) {
-			return field.Invalid(field.NewPath("spec").Child("MapRoles"), mapRole.RoleArn, "invalid ARN")
+			return field.Invalid(field.NewPath("spec").Child("MapRoles"), mapRole.RoleArn, "invalid role ARN")
 		}
 	}
 
 	for _, mapUser := range r.Spec.MapUsers {
 		if !arn.IsARN(mapUser.UserArn) {
-			return field.Invalid(field.NewPath("spec").Child("MapUsers"), mapUser.UserArn, "invalid ARN")
+			return field.Invalid(field.NewPath("spec").Child("MapUsers"), mapUser.UserArn, "invalid user ARN")
 		}
 	}
 
