@@ -8,6 +8,8 @@ jobs:
   release:
     name: release-artifacts
     runs-on: ubuntu-latest
+    env:
+      IMG: ghcr.io/maruina/aws-auth-manager:${{ github.event.release.tag_name }}
     steps:
       - uses: actions/checkout@v2.4.0
 
@@ -39,5 +41,4 @@ jobs:
 
       - name: Generate release manifests
         run: |
-          kustomize build config/crd > config/release/install-crds.yaml
-          kustomize build config/manager > config/release/install-operator.yaml
+          make release
