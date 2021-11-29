@@ -17,7 +17,11 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -39,20 +43,48 @@ var _ webhook.Validator = &AWSAuthItem{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *AWSAuthItem) ValidateCreate() error {
 	awsauthitemlog.Info("validate create", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object creation.
-	return nil
+	return r.validateAWSAuthItem()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *AWSAuthItem) ValidateUpdate(old runtime.Object) error {
 	awsauthitemlog.Info("validate update", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object update.
-	return nil
+	return r.validateAWSAuthItem()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *AWSAuthItem) ValidateDelete() error {
+	return nil
+}
+
+func (r *AWSAuthItem) validateAWSAuthItem() error {
+	var allErrs field.ErrorList
+
+	if err := r.validateArn(); err != nil {
+		allErrs = append(allErrs, err)
+	}
+
+	if len(allErrs) == 0 {
+		return nil
+	}
+
+	return apierrors.NewInvalid(
+		schema.GroupKind{Group: "aws.maruina.k8s", Kind: "AWSAuthItem"},
+		r.Name, allErrs)
+}
+
+func (r *AWSAuthItem) validateArn() *field.Error {
+	for _, mapRole := range r.Spec.MapRoles {
+		if !arn.IsARN(mapRole.RoleArn) {
+			return field.Invalid(field.NewPath("spec").Child("MapRoles"), mapRole.RoleArn, "invalid ARN")
+		}
+	}
+
+	for _, mapUser := range r.Spec.MapUsers {
+		if !arn.IsARN(mapUser.UserArn) {
+			return field.Invalid(field.NewPath("spec").Child("MapUsers"), mapUser.UserArn, "invalid ARN")
+		}
+	}
+
 	return nil
 }
