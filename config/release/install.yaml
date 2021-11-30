@@ -9,10 +9,20 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
+    cert-manager.io/inject-ca-from: aws-auth-manager-system/aws-auth-manager-serving-cert
     controller-gen.kubebuilder.io/version: v0.7.0
-  creationTimestamp: null
   name: awsauthitems.aws.maruina.k8s
 spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        service:
+          name: aws-auth-manager-webhook-service
+          namespace: aws-auth-manager-system
+          path: /convert
+      conversionReviewVersions:
+      - v1
   group: aws.maruina.k8s
   names:
     kind: AWSAuthItem
@@ -336,6 +346,19 @@ spec:
   selector:
     control-plane: controller-manager
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aws-auth-manager-webhook-service
+  namespace: aws-auth-manager-system
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    control-plane: controller-manager
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -382,6 +405,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
         name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
         readinessProbe:
           httpGet:
             path: /readyz
@@ -397,7 +424,66 @@ spec:
             memory: 64Mi
         securityContext:
           allowPrivilegeEscalation: false
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
       securityContext:
         runAsNonRoot: true
       serviceAccountName: aws-auth-manager-controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: webhook-server-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: aws-auth-manager-serving-cert
+  namespace: aws-auth-manager-system
+spec:
+  dnsNames:
+  - aws-auth-manager-webhook-service.aws-auth-manager-system.svc
+  - aws-auth-manager-webhook-service.aws-auth-manager-system.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: aws-auth-manager-selfsigned-issuer
+  secretName: webhook-server-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: aws-auth-manager-selfsigned-issuer
+  namespace: aws-auth-manager-system
+spec:
+  selfSigned: {}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: aws-auth-manager-system/aws-auth-manager-serving-cert
+  name: aws-auth-manager-validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: aws-auth-manager-webhook-service
+      namespace: aws-auth-manager-system
+      path: /validate-aws-maruina-k8s-v1alpha1-awsauthitem
+  failurePolicy: Fail
+  name: vawsauthitem.aws.maruina.k8s
+  rules:
+  - apiGroups:
+    - aws.maruina.k8s
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - awsauthitems
+  sideEffects: None
