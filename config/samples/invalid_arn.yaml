@@ -1,0 +1,20 @@
+apiVersion: aws.maruina.k8s/v1alpha1
+kind: AWSAuthItem
+metadata:
+  name: awsauthitem-sample
+spec:
+  mapUsers:
+    - userarn: invalid
+      username: admin
+      groups:
+        - system:masters
+    - userarn: arn:aws:iam::111122223333:user/ops-user
+      username: ops-user
+      groups:
+        - system:masters
+  mapRoles:
+    - rolearn: xyz
+      username: system:node:{{EC2PrivateDNSName}}
+      groups:
+        - system:bootstrappers
+        - system:nodes
