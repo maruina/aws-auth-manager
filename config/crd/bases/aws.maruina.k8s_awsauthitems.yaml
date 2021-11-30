@@ -42,16 +42,19 @@ spec:
                   properties:
                     groups:
                       description: A list of groups within Kubernetes to which the
-                        role is mapped.
+                        role is mapped
                       items:
                         type: string
+                      minItems: 1
                       type: array
                     rolearn:
-                      description: The ARN of the IAM role to add.
+                      description: The ARN of the IAM role to add
+                      minLength: 25
                       type: string
                     username:
                       description: The user name within Kubernetes to map to the IAM
-                        role.
+                        role
+                      minLength: 1
                       type: string
                   required:
                   - groups
@@ -65,16 +68,19 @@ spec:
                   properties:
                     groups:
                       description: A list of groups within Kubernetes to which the
-                        user is mapped to.
+                        user is mapped to
                       items:
                         type: string
+                      minItems: 1
                       type: array
                     userarn:
-                      description: The ARN of the IAM user to add.
+                      description: The ARN of the IAM user to add
+                      minLength: 25
                       type: string
                     username:
                       description: The user name within Kubernetes to map to the IAM
-                        user.
+                        user
+                      minLength: 1
                       type: string
                   required:
                   - groups
