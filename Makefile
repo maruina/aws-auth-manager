@@ -62,8 +62,8 @@ test: manifests generate fmt vet envtest ginkgo ## Run tests.
 
 .PHONY: setup-e2e
 setup-e2e:
-	kind create cluster
-	kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.yaml
+	kind create cluster --name ${CLUSTER}
+	kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.yaml --context kind-${CLUSTER}
 
 .PHONY: e2e
 e2e:
@@ -93,7 +93,7 @@ docker-push: ## Push docker image with the manager.
 
 .PHONY: kind-last
 kind-load: ## Load image on kind cluster
-	kind load docker-image ${IMG}
+	kind load docker-image ${IMG} --name ${CLUSTER} --nodes ${CLUSTER}-control-plane
 
 ##@ Deployment
 

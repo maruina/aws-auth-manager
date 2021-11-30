@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMG: controller:kind
+      CLUSTER: kind
     steps:
       - uses: actions/checkout@v2.4.0
 
@@ -22,7 +23,7 @@ jobs:
       - name: Create kind cluster
         uses: helm/kind-action@v1.2.0
         with:
-          cluster_name: kind
+          cluster_name: ${{ env.CLUSTER }}
 
       - name: Install cert-manager
         run: kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.yaml
@@ -39,9 +40,6 @@ jobs:
       - name: Install manifests
         run: make deploy
 
-      - name: Deploy example AWSAuthItem
-        run: kubectl apply -f config/samples/awsauthitem.yaml
-
       - name: Wait for controller to be ready
         run: |
           count=0
@@ -55,6 +53,9 @@ jobs:
             fi
           done
           echo ' done'
+
+      - name: Deploy example AWSAuthItem
+        run: kubectl apply -f config/samples/awsauthitem.yaml
 
       - name: Test AWSAuthItem
         run: |
