@@ -24,11 +24,14 @@ jobs:
         with:
           cluster_name: kind
 
+      - name: Install cert-manager
+        run: kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.yaml
+
       - name: Build and push
         run: make docker-build
 
       - name: Push the image to Kind cluster
-        run: kind load docker-image controller:kind
+        run: make kind-load
 
       - name: Install CRDs
         run: make install
@@ -38,6 +41,20 @@ jobs:
 
       - name: Deploy example AWSAuthItem
         run: kubectl apply -f config/samples/awsauthitem.yaml
+
+      - name: Wait for controller to be ready
+        run: |
+          count=0
+          until [ '1' == "$( kubectl get deploy aws-auth-manager-controller-manager -n aws-auth-manager-system -o json | jq 'try .status.readyReplicas' )" ]; do
+            echo -n '.'
+            sleep 5
+            count=$((count + 1))
+            if [[ ${count} -eq 6 ]]; then
+              echo ' No more retries left!'
+              exit 1
+            fi
+          done
+          echo ' done'
 
       - name: Test AWSAuthItem
         run: |

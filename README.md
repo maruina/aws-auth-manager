@@ -37,6 +37,10 @@ spec:
         - system:masters
 ```
 
+## Requirements
+
+- [cert-manager](https://cert-manager.io/docs/)
+
 ## Install
 
 ```console
