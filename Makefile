@@ -62,6 +62,7 @@ test: manifests generate fmt vet envtest ginkgo ## Run tests.
 .PHONY: setup-e2e
 setup-e2e:
 	kind create cluster --name aws-auth-manager-e2e
+	kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.yaml --context kind-aws-auth-manager-e2e
 
 .PHONY: e2e
 e2e:
@@ -88,6 +89,10 @@ docker-build: test ## Build docker image with the manager.
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
+
+.PHONY: kind-last
+kind-load: ## Load image on kind cluster
+	kind load docker-image ${IMG} --name aws-auth-manager-e2e --nodes aws-auth-manager-e2e-control-plane
 
 ##@ Deployment
 
