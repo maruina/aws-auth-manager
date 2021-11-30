@@ -36,7 +36,7 @@ func (r *AWSAuthItem) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-aws-maruina-k8s-v1alpha1-awsauthitem,mutating=false,failurePolicy=fail,sideEffects=None,groups=aws.maruina.k8s,resources=awsauthitems,verbs=create;update,versions=v1alpha1,name=vawsauthitem.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-aws-maruina-k8s-v1alpha1-awsauthitem,mutating=false,failurePolicy=fail,sideEffects=None,groups=aws.maruina.k8s,resources=awsauthitems,verbs=create;update,versions=v1alpha1,name=vawsauthitem.aws.maruina.k8s,admissionReviewVersions=v1
 
 var _ webhook.Validator = &AWSAuthItem{}
 
@@ -60,8 +60,8 @@ func (r *AWSAuthItem) ValidateDelete() error {
 func (r *AWSAuthItem) validateAWSAuthItem() error {
 	var allErrs field.ErrorList
 
-	if err := r.validateArn(); err != nil {
-		allErrs = append(allErrs, err)
+	if errs := r.validateArns(); errs != nil {
+		allErrs = append(allErrs, errs...)
 	}
 
 	if len(allErrs) == 0 {
@@ -73,18 +73,20 @@ func (r *AWSAuthItem) validateAWSAuthItem() error {
 		r.Name, allErrs)
 }
 
-func (r *AWSAuthItem) validateArn() *field.Error {
+func (r *AWSAuthItem) validateArns() field.ErrorList {
+	var errList field.ErrorList
+
 	for _, mapRole := range r.Spec.MapRoles {
 		if !arn.IsARN(mapRole.RoleArn) {
-			return field.Invalid(field.NewPath("spec").Child("MapRoles"), mapRole.RoleArn, "invalid role ARN")
+			errList = append(errList, field.Invalid(field.NewPath("spec").Child("MapRoles"), mapRole.RoleArn, "invalid role ARN"))
 		}
 	}
 
 	for _, mapUser := range r.Spec.MapUsers {
 		if !arn.IsARN(mapUser.UserArn) {
-			return field.Invalid(field.NewPath("spec").Child("MapUsers"), mapUser.UserArn, "invalid user ARN")
+			errList = append(errList, field.Invalid(field.NewPath("spec").Child("MapUsers"), mapUser.UserArn, "invalid user ARN"))
 		}
 	}
 
-	return nil
+	return errList
 }
