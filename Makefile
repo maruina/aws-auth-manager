@@ -71,7 +71,7 @@ e2e:
 
 .PHONY: teardown-e2e
 teardown-e2e:
-	kind delete cluster
+	kind delete cluster --name ${CLUSTER}
 
 ##@ Build
 
