@@ -1,6 +1,7 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/maruina/aws-auth-manager:latest
+CLUSTER ?= aws-auth-manager
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.22
 
@@ -61,8 +62,8 @@ test: manifests generate fmt vet envtest ginkgo ## Run tests.
 
 .PHONY: setup-e2e
 setup-e2e:
-	kind create cluster --name aws-auth-manager-e2e
-	kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.yaml --context kind-aws-auth-manager-e2e
+	kind create cluster
+	kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.yaml
 
 .PHONY: e2e
 e2e:
@@ -70,7 +71,7 @@ e2e:
 
 .PHONY: teardown-e2e
 teardown-e2e:
-	kind delete cluster --name aws-auth-manager-e2e
+	kind delete cluster
 
 ##@ Build
 
@@ -83,7 +84,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
+docker-build: ## Build docker image with the manager.
 	docker build -t ${IMG} .
 
 .PHONY: docker-push
@@ -92,7 +93,7 @@ docker-push: ## Push docker image with the manager.
 
 .PHONY: kind-last
 kind-load: ## Load image on kind cluster
-	kind load docker-image ${IMG} --name aws-auth-manager-e2e --nodes aws-auth-manager-e2e-control-plane
+	kind load docker-image ${IMG}
 
 ##@ Deployment
 
