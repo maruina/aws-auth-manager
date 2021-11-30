@@ -3,6 +3,7 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
+  creationTimestamp: null
   name: validating-webhook-configuration
 webhooks:
 - admissionReviewVersions:
@@ -13,7 +14,7 @@ webhooks:
       namespace: system
       path: /validate-aws-maruina-k8s-v1alpha1-awsauthitem
   failurePolicy: Fail
-  name: vawsauthitem.kb.io
+  name: vawsauthitem.aws.maruina.k8s
   rules:
   - apiGroups:
     - aws.maruina.k8s
