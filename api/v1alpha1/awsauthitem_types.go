@@ -26,31 +26,45 @@ const AWSAuthFinalizer = "finalizer.aws.maruina.k8s"
 // AWSAuthItemSpec defines the desired state of AWSAuthItem
 type AWSAuthItemSpec struct {
 	// MapRoles holds a list of MapRoleItem
+	//+kubebuilder:validation:Optional
 	MapRoles []MapRoleItem `json:"mapRoles,omitempty"`
 
 	// MapUsers holds a list of MapUserItem
+	//+kubebuilder:validation:Optional
 	MapUsers []MapUserItem `json:"mapUsers,omitempty"`
 }
 
 type MapRoleItem struct {
-	// The ARN of the IAM role to add.
+	// The ARN of the IAM role to add
+	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:MinLength=25
 	RoleArn string `json:"rolearn"`
 
-	// The user name within Kubernetes to map to the IAM role.
+	// The user name within Kubernetes to map to the IAM role
+	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:MinLength=1
 	Username string `json:"username"`
 
-	// A list of groups within Kubernetes to which the role is mapped.
+	// A list of groups within Kubernetes to which the role is mapped
+	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:MinItems=1
 	Groups []string `json:"groups"`
 }
 
 type MapUserItem struct {
-	// The ARN of the IAM user to add.
+	// The ARN of the IAM user to add
+	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:MinLength=25
 	UserArn string `json:"userarn"`
 
-	// The user name within Kubernetes to map to the IAM user.
+	// The user name within Kubernetes to map to the IAM user
+	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:MinLength=1
 	Username string `json:"username"`
 
-	// A list of groups within Kubernetes to which the user is mapped to.
+	// A list of groups within Kubernetes to which the user is mapped to
+	//+kubebuilder:validation:Required
+	//+kubebuilder:validation:MinItems=1
 	Groups []string `json:"groups"`
 }
 

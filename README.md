@@ -46,12 +46,3 @@ spec:
 ```console
 kubectl apply -f https://raw.githubusercontent.com/maruina/aws-auth-manager/main/config/release/install.yaml
 ```
-
-## TODO
-
-- Install via Helm Chart
-- Validation webhook:
-  - `roleArn`
-  - `userArn`
-  - at least one entry for system nodes
-  - duplicated entries
