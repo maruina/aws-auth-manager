@@ -53,3 +53,15 @@ jobs:
             fi
           done
           echo ' done'
+
+      - name: Test ARN validation webhook
+        run: |
+          output=$(kubectl apply -f config/samples/invalid_arn.yaml || true)
+          substring="The AWSAuthItem \"awsauthitem-invalid\" is invalid"
+          if [ -z "${output##*$reqsubstr*}" ]; then
+            echo 'Invalid AWSAuthItem failed validation'
+            exit 0
+          else
+            echo 'Validation Webhook not working as expected'
+            exit 1
+          fi
