@@ -6,6 +6,12 @@ The `aws-auth` configmap is used to give RBAC access to IAM users and roles. Bec
 
 The `aws-auth-manager` provides the ability to define multiple `AWSAuthItem` objects that will be merged to create thew `aws-auth` configmap.
 
+## Features
+
+- Create the `aws-auth` configmap if it's missing.
+- Prevent manual changes to `aws-auth` by triggering a reconciliation loop and rebuilding it.
+- Deploy a validation webhook to validate `userArn` and `roleArn` fields.
+
 ## Example `spec`
 
 ```yaml
