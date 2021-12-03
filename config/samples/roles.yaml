@@ -1,7 +1,7 @@
 apiVersion: aws.maruina.k8s/v1alpha1
 kind: AWSAuthItem
 metadata:
-  name: mixed
+  name: roles
 spec:
   mapRoles:
     - groups:
