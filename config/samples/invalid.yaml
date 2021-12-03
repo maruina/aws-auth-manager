@@ -1,10 +1,10 @@
 apiVersion: aws.maruina.k8s/v1alpha1
 kind: AWSAuthItem
 metadata:
-  name: awsauthitem-sample
+  name: invalid
 spec:
   mapUsers:
-    - userarn: arn:aws:iam::111122223333:user/admin
+    - userarn: this-is-long-enought-but-is-not-a-valid-arn
       username: admin
       groups:
         - system:masters
@@ -13,7 +13,7 @@ spec:
       groups:
         - system:masters
   mapRoles:
-    - rolearn: arn:aws:iam::111122223333:role/eksctl-my-cluster-nodegroup-standard-wo-NodeInstanceRole-1WP3NUE3O6UCF
+    - rolearn: xyz:aws:iam::111122223333:user/ops-user
       username: system:node:{{EC2PrivateDNSName}}
       groups:
         - system:bootstrappers

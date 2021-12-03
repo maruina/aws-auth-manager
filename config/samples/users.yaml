@@ -1,0 +1,10 @@
+apiVersion: aws.maruina.k8s/v1alpha1
+kind: AWSAuthItem
+metadata:
+  name: users
+spec:
+  mapUsers:
+    - userarn: arn:aws:iam::111122223333:user/svc_ci
+      username: svc_ci
+      groups:
+        - integration-testing-tools

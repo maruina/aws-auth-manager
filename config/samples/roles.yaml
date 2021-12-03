@@ -1,0 +1,10 @@
+apiVersion: aws.maruina.k8s/v1alpha1
+kind: AWSAuthItem
+metadata:
+  name: mixed
+spec:
+  mapRoles:
+    - groups:
+      - system:masters
+      rolearn: arn:aws:iam::111122223333:role/prod_admins
+      username: admin:{{SessionName}}
