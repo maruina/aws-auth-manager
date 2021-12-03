@@ -55,13 +55,13 @@ jobs:
           echo ' done'
 
       - name: Deploy example AWSAuthItem
-        run: kubectl apply -f config/samples/awsauthitem.yaml
+        run: kubectl apply -f config/samples/mixed.yaml
 
       - name: Test AWSAuthItem
         run: |
           echo -n ">>> Waiting for expected conditions"
           count=0
-          until [ 'true' == "$( kubectl get awsauthitems.aws.maruina.k8s awsauthitem-sample -o json | jq 'try .status.conditions | map( { (.type): .status } ) | add | .Ready=="True"' )" ]; do
+          until [ 'true' == "$( kubectl get awsauthitems.aws.maruina.k8s mixed -o json | jq 'try .status.conditions | map( { (.type): .status } ) | add | .Ready=="True"' )" ]; do
             echo -n '.'
             sleep 5
             count=$((count + 1))
@@ -74,8 +74,8 @@ jobs:
 
       - name: Test ARN validation webhook
         run: |
-          output=$(kubectl apply -f config/samples/invalid_arn.yaml || true)
-          substring="The AWSAuthItem \"awsauthitem-invalid\" is invalid"
+          output=$(kubectl apply -f config/samples/invalid.yaml || true)
+          substring="The AWSAuthItem \"invalid\" is invalid"
           if [ -z "${output##*$reqsubstr*}" ]; then
             echo 'Invalid AWSAuthItem failed validation'
             exit 0
