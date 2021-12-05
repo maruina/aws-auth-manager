@@ -18,19 +18,20 @@ import (
 var _ = Describe("AWSAuth controller", func() {
 
 	SetDefaultEventuallyTimeout(time.Second * 10)
-	authCm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      AWSAuthMapName,
-			Namespace: AWSAuthMapNamespace,
-		},
-	}
 
 	It("Should manage the aws-auth ConfigMap", func() {
+		authCm := corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      reconciler.AWSAuthConfigMapName,
+				Namespace: reconciler.AWSAuthConfigMapNamespace,
+			},
+		}
+
 		By("Creating three AWSAuthItem objects")
 		userItem := awsauthv1alpha1.AWSAuthItem{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "user-item",
-				Namespace: AWSAuthMapNamespace,
+				Namespace: reconciler.AWSAuthConfigMapNamespace,
 			},
 			Spec: awsauthv1alpha1.AWSAuthItemSpec{
 				MapUsers: []awsauthv1alpha1.MapUserItem{
@@ -52,7 +53,7 @@ var _ = Describe("AWSAuth controller", func() {
 		roleItem := awsauthv1alpha1.AWSAuthItem{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "role-item",
-				Namespace: AWSAuthMapNamespace,
+				Namespace: reconciler.AWSAuthConfigMapNamespace,
 			},
 			Spec: awsauthv1alpha1.AWSAuthItemSpec{
 				MapRoles: []awsauthv1alpha1.MapRoleItem{
@@ -69,7 +70,7 @@ var _ = Describe("AWSAuth controller", func() {
 		mixedItem := awsauthv1alpha1.AWSAuthItem{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "mixed-item",
-				Namespace: AWSAuthMapNamespace,
+				Namespace: reconciler.AWSAuthConfigMapNamespace,
 			},
 			Spec: awsauthv1alpha1.AWSAuthItemSpec{
 				MapRoles: []awsauthv1alpha1.MapRoleItem{
