@@ -49,14 +49,15 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
+	var metricsAddr, probeAddr, AWSAuthConfigMapName, AWSAuthConfigMapNamespace string
 	var enableLeaderElection bool
-	var probeAddr string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&AWSAuthConfigMapName, "aws-auth-configmap-name", "aws-auth", "The name of the aws-auth configmap.")
+	flag.StringVar(&AWSAuthConfigMapNamespace, "aws-auth-configmap-namespace", "kube-system", "The namespace of the aws-auth configmap.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -79,8 +80,10 @@ func main() {
 	}
 
 	if err = (&controllers.AWSAuthItemReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:                    mgr.GetClient(),
+		Scheme:                    mgr.GetScheme(),
+		AWSAuthConfigMapName:      AWSAuthConfigMapName,
+		AWSAuthConfigMapNamespace: AWSAuthConfigMapNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSAuthItem")
 		os.Exit(1)

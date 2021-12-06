@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -43,14 +44,14 @@ import (
 // AWSAuthItemReconciler reconciles a AWSAuthItem object
 type AWSAuthItemReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme                    *runtime.Scheme
+	AWSAuthConfigMapName      string
+	AWSAuthConfigMapNamespace string
 }
 
 const (
-	AWSAuthMapName      = "aws-auth"
-	AWSAuthMapNamespace = "kube-system"
-	MapRolesAnnotation  = "aws-auth-manager.maruina.k8s/map-roles-sha256"
-	MapUsersAnnotation  = "aws-auth-manager.maruina.k8s/map-users-sha256"
+	MapRolesAnnotation = "aws-auth-manager.maruina.k8s/map-roles-sha256"
+	MapUsersAnnotation = "aws-auth-manager.maruina.k8s/map-users-sha256"
 )
 
 //+kubebuilder:rbac:groups=aws.maruina.k8s,resources=awsauthitems,verbs=get;list;watch;create;update;patch;delete
@@ -120,7 +121,7 @@ func (r *AWSAuthItemReconciler) findObjectsForConfigMap(configMap client.Object)
 	}
 
 	// We are only interested in the aws-auth/kube-system configmap
-	if configMap.GetName() != AWSAuthMapName || configMap.GetNamespace() != AWSAuthMapNamespace {
+	if configMap.GetName() != r.AWSAuthConfigMapName || configMap.GetNamespace() != r.AWSAuthConfigMapNamespace {
 		return []reconcile.Request{}
 	}
 
@@ -148,13 +149,13 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 
 	// Get the aws-auth configMap
 	var authCm corev1.ConfigMap
-	if err := r.Get(ctx, types.NamespacedName{Name: AWSAuthMapName, Namespace: AWSAuthMapNamespace}, &authCm); err != nil {
+	if err := r.Get(ctx, types.NamespacedName{Name: r.AWSAuthConfigMapName, Namespace: r.AWSAuthConfigMapNamespace}, &authCm); err != nil {
 		// Create the aws-auth configmap if it doesn't exist
 		if errors.IsNotFound(err) {
 			authCm = corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:        AWSAuthMapName,
-					Namespace:   AWSAuthMapNamespace,
+					Name:        r.AWSAuthConfigMapName,
+					Namespace:   r.AWSAuthConfigMapNamespace,
 					Annotations: make(map[string]string),
 				},
 				Data: map[string]string{
@@ -164,12 +165,12 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 			}
 
 			if createErr := r.Create(ctx, &authCm); createErr != nil {
-				log.Error(createErr, "unable to created aws-auth configmap")
+				log.Error(createErr, fmt.Sprintf("unable to created %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
 				return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason, err.Error()),
 					ctrl.Result{Requeue: true}, createErr
 			}
 		} else {
-			log.Error(err, "unable to fetch the aws-auth ConfigMap object")
+			log.Error(err, fmt.Sprintf("unable to fetch %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
 			return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.GetAwsAuthConfigMapFailedReason, err.Error()),
 				ctrl.Result{Requeue: true}, err
 		}
@@ -254,7 +255,7 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 		authCm.ObjectMeta.Annotations[MapUsersAnnotation] = usersHash
 
 		if err := r.Update(ctx, &authCm); err != nil {
-			log.Error(err, "unable to update the aws-auth ConfigMap")
+			log.Error(err, fmt.Sprintf("unable to update %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
 			return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.UpdateAwsAuthConfigMapFailedReason, err.Error()),
 				ctrl.Result{Requeue: true}, err
 		}
@@ -269,13 +270,13 @@ func (r *AWSAuthItemReconciler) reconcileDelete(ctx context.Context, item awsaut
 	// Reset the annotations on to trigger a reconciliation
 	authCm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      AWSAuthMapName,
-			Namespace: AWSAuthMapNamespace,
+			Name:      r.AWSAuthConfigMapName,
+			Namespace: r.AWSAuthConfigMapNamespace,
 		},
 	}
 
 	if err := r.Get(ctx, client.ObjectKeyFromObject(&authCm), &authCm); err != nil {
-		log.Error(err, "unabled to fetch the aws-auth configamp when deleting the AWSAuthItem object")
+		log.Error(err, fmt.Sprintf("unabled to fetch %s/%s configamp when deleting the AWSAuthItem object", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
 		return ctrl.Result{}, err
 	}
 
@@ -283,7 +284,7 @@ func (r *AWSAuthItemReconciler) reconcileDelete(ctx context.Context, item awsaut
 	authCm.ObjectMeta.Annotations[MapUsersAnnotation] = ""
 
 	if err := r.Update(ctx, &authCm); err != nil {
-		log.Error(err, "unable to update the aws-auth configmap when deleting the AWSAuthItem object")
+		log.Error(err, fmt.Sprintf("unable to update %s/%s configmap when deleting the AWSAuthItem object", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
 	}
 
 	controllerutil.RemoveFinalizer(&item, awsauthv1alpha1.AWSAuthFinalizer)

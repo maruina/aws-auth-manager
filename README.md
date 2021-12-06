@@ -8,6 +8,7 @@ The `aws-auth-manager` provides the ability to define multiple `AWSAuthItem` obj
 
 ## Features
 
+- Allow to specify name and namespace for the auth configmap to test the controller in an existing installation.
 - Create the `aws-auth` configmap if it's missing.
 - Prevent manual changes to `aws-auth` by triggering a reconciliation loop and rebuilding it.
 - Deploy a validation webhook to validate `userArn` and `roleArn` fields.

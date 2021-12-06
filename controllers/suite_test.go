@@ -39,10 +39,11 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
-	k8sClient client.Client
-	testEnv   *envtest.Environment
-	ctx       context.Context
-	cancel    context.CancelFunc
+	k8sClient  client.Client
+	testEnv    *envtest.Environment
+	ctx        context.Context
+	cancel     context.CancelFunc
+	reconciler *AWSAuthItemReconciler
 )
 
 func TestAPIs(t *testing.T) {
@@ -82,10 +83,13 @@ var _ = BeforeSuite(func() {
 	Expect(k8sManager).NotTo(BeNil())
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&AWSAuthItemReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
-	}).SetupWithManager(k8sManager)
+	reconciler = &AWSAuthItemReconciler{
+		Client:                    k8sManager.GetClient(),
+		Scheme:                    k8sManager.GetScheme(),
+		AWSAuthConfigMapName:      "aws-auth-dryrun",
+		AWSAuthConfigMapNamespace: "kube-system",
+	}
+	err = reconciler.SetupWithManager(k8sManager)
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {
