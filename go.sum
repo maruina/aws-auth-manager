@@ -140,6 +140,8 @@ github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5Kwzbycv
 github.com/felixge/httpsnoop v1.0.1/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fluxcd/pkg/apis/meta v0.10.1 h1:zISenRlqNG7WK8TP3HxZTvv+1Z7JZOUIQvZrOr6pQ2w=
 github.com/fluxcd/pkg/apis/meta v0.10.1/go.mod h1:yUblM2vg+X8TE3A2VvJfdhkGmg+uqBlSPkLk7dxi0UM=
+github.com/fluxcd/pkg/apis/meta v0.10.2 h1:pnDBBEvfs4HaKiVAYgz+e/AQ8dLvcgmVfSeBroZ/KKI=
+github.com/fluxcd/pkg/apis/meta v0.10.2/go.mod h1:KQ2er9xa6koy7uoPMZjIjNudB5p4tXs+w0GO6fRcy7I=
 github.com/form3tech-oss/jwt-go v3.2.2+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
 github.com/form3tech-oss/jwt-go v3.2.3+incompatible h1:7ZaBxOI7TMoYBfyA3cQHErNNyAWIKUMIwqxEtgHOs5c=
 github.com/form3tech-oss/jwt-go v3.2.3+incompatible/go.mod h1:pbq4aXjuKjdthFRnoDwaVPLA+WlJuPGy+QneDUgJi2k=
