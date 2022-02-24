@@ -1,4 +1,4 @@
-name: Test Kustomize Build
+name: Test E2E
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   test-build:
-    name: test-kustomize-build
+    name: test-e2e
     runs-on: ubuntu-latest
     env:
       IMG: controller:kind
