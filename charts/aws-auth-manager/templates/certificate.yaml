@@ -1,0 +1,50 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "aws-auth-manager.fullname" . }}-serving-cert
+  namespace: {{ .Release.Namespace }}
+spec:
+  dnsNames:
+  - {{ include "aws-auth-manager.fullname" . }}-webhook-service.{{ .Release.Namespace }}.svc
+  - {{ include "aws-auth-manager.fullname" . }}-webhook-service.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: {{ include "aws-auth-manager.fullname" . }}-selfsigned-issuer
+  secretName: webhook-server-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "aws-auth-manager.fullname" . }}-selfsigned-issuer
+  namespace: {{ .Release.Namespace }}
+spec:
+  selfSigned: {}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "aws-auth-manager.fullname" . }}-serving-cert
+  name: {{ include "aws-auth-manager.fullname" . }}-validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "aws-auth-manager.fullname" . }}webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-aws-maruina-k8s-v1alpha1-awsauthitem
+  failurePolicy: Fail
+  name: vawsauthitem.aws.maruina.k8s
+  rules:
+  - apiGroups:
+    - aws.maruina.k8s
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - awsauthitems
+  sideEffects: None
