@@ -1,0 +1,5 @@
+image:
+  repository: controller
+  tag: kind
+
+replicaCount: 2

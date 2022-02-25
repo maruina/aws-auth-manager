@@ -1,0 +1,171 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+metadata:
+  name: {{ include "aws-auth-manager.fullname" . }}-leader-election-role
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aws-auth-manager.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "aws-auth-manager.fullname" . }}-manager-role
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aws-auth-manager.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - aws.maruina.k8s
+  resources:
+  - awsauthitems
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - aws.maruina.k8s
+  resources:
+  - awsauthitems/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - aws.maruina.k8s
+  resources:
+  - awsauthitems/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "aws-auth-manager.fullname" . }}-metrics-reader
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aws-auth-manager.labels" . | nindent 4 }}
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "aws-auth-manager.fullname" . }}-proxy-role
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aws-auth-manager.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "aws-auth-manager.fullname" . }}-leader-election-rolebinding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aws-auth-manager.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "aws-auth-manager.fullname" . }}-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: {{ include "aws-auth-manager.fullname" . }}-controller-manager
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "aws-auth-manager.fullname" . }}-manager-rolebinding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aws-auth-manager.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "aws-auth-manager.fullname" . }}-manager-role
+subjects:
+- kind: ServiceAccount
+  name: {{ include "aws-auth-manager.fullname" . }}-controller-manager
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "aws-auth-manager.fullname" . }}-proxy-rolebinding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aws-auth-manager.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "aws-auth-manager.fullname" . }}-proxy-role
+subjects:
+- kind: ServiceAccount
+  name: {{ include "aws-auth-manager.fullname" . }}-controller-manager
+  namespace: {{ .Release.Namespace }}
+---

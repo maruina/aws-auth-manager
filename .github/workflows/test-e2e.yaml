@@ -1,4 +1,4 @@
-name: Test Kustomize Build
+name: Test E2E
 
 on:
   push:
@@ -8,17 +8,18 @@ on:
 
 jobs:
   test-build:
-    name: test-kustomize-build
+    name: test-e2e
     runs-on: ubuntu-latest
     env:
       IMG: controller:kind
       CLUSTER: kind
+      CERT_MANAGER: v1.7.1
     steps:
       - uses: actions/checkout@v2.4.0
 
       - uses: actions/setup-go@v2
         with:
-          go-version: ^1.16
+          go-version: ^1.17
 
       - name: Create kind cluster
         uses: helm/kind-action@v1.2.0
@@ -26,7 +27,7 @@ jobs:
           cluster_name: ${{ env.CLUSTER }}
 
       - name: Install cert-manager
-        run: kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.yaml
+        run: kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/${{ env.CERT_MANAGER }}/cert-manager.yaml
 
       - name: Build and push
         run: make docker-build
