@@ -1,6 +1,6 @@
 apiVersion: v2
 name: aws-auth-manager
-description: A Helm chart for Kubernetes
+description: A Helm chart to install a controller to manager the aws-auth configmap in EKS
 
 # A chart can be either an 'application' or a 'library' chart.
 #
@@ -22,3 +22,11 @@ version: 0.1.0
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
 appVersion: "v0.1.0"
+
+keywords:
+  - aws
+  - iam
+  - aws-auth
+maintainers:
+  - name: maruina
+    email: matteo.ruina@gmail.com

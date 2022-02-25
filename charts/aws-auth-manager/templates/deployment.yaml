@@ -37,6 +37,10 @@ spec:
         - --leader-elect
         command:
         - /manager
+        - --metrics-bind-address={{ .Values.args.metricsBindAddress }}
+        {{- if or (gt ( .Values.replicaCount | int64) 1) .Values.args.enableLeaderElection }}
+        - --leader-elect=true
+        {{- end }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: IfNotPresent
         livenessProbe:

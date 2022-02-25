@@ -13,6 +13,12 @@ image:
 nameOverride: ""
 fullnameOverride: ""
 
+args:
+  # -- The address the metric endpoint binds to.
+  metricsBindAddress: :8080
+  # -- Enable leader election for controller manager.
+  leaderElect: false
+
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
