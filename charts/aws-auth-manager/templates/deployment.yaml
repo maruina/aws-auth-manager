@@ -11,7 +11,7 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-    control-plane: {{ include "aws-auth-manager.fullname" . }}-controller-manager
+      control-plane: {{ include "aws-auth-manager.fullname" . }}-controller-manager
   template:
     metadata:
       annotations:
@@ -38,7 +38,6 @@ spec:
         command:
         - /manager
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-        image: :latest
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
