@@ -8,8 +8,6 @@ jobs:
   release:
     name: release-artifacts
     runs-on: ubuntu-latest
-    env:
-      IMG: ghcr.io/maruina/aws-auth-manager:${{ github.event.release.tag_name }}
     steps:
       - uses: actions/checkout@v3.0.0
 
@@ -36,9 +34,11 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build a docker image
         uses: docker/build-push-action@v2.9.0
         with:
-          push: true
+          file: Dockerfile
+          context: .
+          platforms: linux/amd64,linux/arm64,linux/arm
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          push: true
