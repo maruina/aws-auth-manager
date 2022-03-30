@@ -3,7 +3,7 @@ module github.com/maruina/aws-auth-manager
 go 1.17
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.16.1
+	github.com/aws/aws-sdk-go-v2 v1.16.2
 	github.com/fluxcd/pkg/apis/meta v0.10.2
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
