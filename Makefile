@@ -91,7 +91,7 @@ docker-build: ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
-.PHONY: kind-last
+.PHONY: kind-load
 kind-load: ## Load image on kind cluster
 	kind load docker-image ${IMG} --name ${CLUSTER} --nodes ${CLUSTER}-control-plane
 
