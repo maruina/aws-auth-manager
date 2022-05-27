@@ -4,6 +4,7 @@ IMG ?= ghcr.io/maruina/aws-auth-manager:latest
 CLUSTER ?= aws-auth-manager
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.23
+CERT_MANAGER_VERSION = v1.8.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -63,7 +64,7 @@ test: manifests generate fmt vet envtest ## Run tests.
 .PHONY: setup-e2e
 setup-e2e:
 	kind create cluster --name ${CLUSTER}
-	kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.yaml --context kind-${CLUSTER}
+	kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.yaml --context kind-${CLUSTER}
 
 .PHONY: e2e
 e2e:
