@@ -1,0 +1,38 @@
+linters:
+  disable:
+    - gci
+    - wrapcheck
+    - gomnd
+    - scopelint
+    - varnamelen
+    - testpackage
+    - tagliatelle
+    - paralleltest
+    - ireturn
+    - goerr113
+    - gochecknoglobals
+    - exhaustivestruct
+    - wsl
+    - exhaustive
+    - nosprintfhostport
+    - nonamedreturns
+    - interfacebloat
+    - exhaustruct
+    - lll
+    - gosec
+    - gomoddirectives
+    - godox
+    - gochecknoinits
+    - funlen
+    - dupl
+    - cyclop
+    # deprecated linters
+    - deadcode
+    - golint
+    - interfacer
+    - structcheck
+    - varcheck
+    - nosnakecase
+    - ifshort
+    - maligned
+  enable-all: true

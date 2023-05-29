@@ -23,7 +23,7 @@ import (
 
 const AWSAuthFinalizer = "finalizer.aws.maruina.k8s"
 
-// AWSAuthItemSpec defines the desired state of AWSAuthItem
+// AWSAuthItemSpec defines the desired state of AWSAuthItem.
 type AWSAuthItemSpec struct {
 	// MapRoles holds a list of MapRoleItem
 	//+kubebuilder:validation:Optional
@@ -68,7 +68,7 @@ type MapUserItem struct {
 	Groups []string `json:"groups"`
 }
 
-// AWSAuthItemStatus defines the observed state of AWSAuthItem
+// AWSAuthItemStatus defines the observed state of AWSAuthItem.
 type AWSAuthItemStatus struct {
 	// ObservedGeneration is the last observed generation.
 	// +kubebuilder:validation:Optional
@@ -86,12 +86,14 @@ func AWSAuthItemProgressing(item AWSAuthItem) AWSAuthItem {
 	item.Status.Conditions = []metav1.Condition{}
 	meta.SetResourceCondition(&item, meta.ReadyCondition, metav1.ConditionUnknown, meta.ProgressingReason,
 		"Reconciliation in progress")
+
 	return item
 }
 
 // AWSAuthItemNotReady registers a failed reconciliation of the given AWSAuthItem.
 func AWSAuthItemNotReady(item AWSAuthItem, reason, message string) AWSAuthItem {
 	meta.SetResourceCondition(&item, meta.ReadyCondition, metav1.ConditionFalse, reason, message)
+
 	return item
 }
 
@@ -99,18 +101,19 @@ func AWSAuthItemNotReady(item AWSAuthItem, reason, message string) AWSAuthItem {
 func AWSAuthItemReady(item AWSAuthItem) AWSAuthItem {
 	meta.SetResourceCondition(&item, meta.ReadyCondition, metav1.ConditionTrue, meta.ReconciliationSucceededReason,
 		"Item reconciliation succeeded")
+
 	return item
 }
 
-// GetStatusConditions returns a pointer to the Status.Conditions slice
-func (in *AWSAuthItem) GetStatusConditions() *[]metav1.Condition {
-	return &in.Status.Conditions
+// GetStatusConditions returns a pointer to the Status.Conditions slice.
+func (r *AWSAuthItem) GetStatusConditions() *[]metav1.Condition {
+	return &r.Status.Conditions
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// AWSAuthItem is the Schema for the awsauthitems API
+// AWSAuthItem is the Schema for the awsauthitems API.
 type AWSAuthItem struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -121,7 +124,7 @@ type AWSAuthItem struct {
 
 //+kubebuilder:object:root=true
 
-// AWSAuthItemList contains a list of AWSAuthItem
+// AWSAuthItemList contains a list of AWSAuthItem.
 type AWSAuthItemList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
