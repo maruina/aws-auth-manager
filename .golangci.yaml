@@ -1,5 +1,6 @@
 linters:
   disable:
+    - gci
     - wrapcheck
     - gomnd
     - scopelint
