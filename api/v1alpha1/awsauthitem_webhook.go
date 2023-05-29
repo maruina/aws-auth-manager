@@ -40,19 +40,21 @@ func (r *AWSAuthItem) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 var _ webhook.Validator = &AWSAuthItem{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
+// ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (r *AWSAuthItem) ValidateCreate() error {
 	awsauthitemlog.Info("validate create", "name", r.Name)
+
 	return r.validateAWSAuthItem()
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *AWSAuthItem) ValidateUpdate(old runtime.Object) error {
+// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
+func (r *AWSAuthItem) ValidateUpdate(_ runtime.Object) error {
 	awsauthitemlog.Info("validate update", "name", r.Name)
+
 	return r.validateAWSAuthItem()
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
 func (r *AWSAuthItem) ValidateDelete() error {
 	return nil
 }

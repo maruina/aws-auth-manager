@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
+	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -11,12 +12,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
-
-	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 )
 
 var _ = Describe("AWSAuth controller", func() {
-
 	SetDefaultEventuallyTimeout(time.Second * 10)
 
 	It("Should manage the aws-auth ConfigMap", func() {
