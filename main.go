@@ -32,6 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 var (
@@ -66,8 +67,7 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "3e9c5384.aws.maruina.k8s",
@@ -76,6 +76,8 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	// +kubebuilder:docs-gen:collapse=old stuff
 
 	if err = (&controllers.AWSAuthItemReconciler{
 		Client:                    mgr.GetClient(),
@@ -86,9 +88,20 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSAuthItem")
 		os.Exit(1)
 	}
-	if err = (&awsauthv1alpha1.AWSAuthItem{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "AWSAuthItem")
-		os.Exit(1)
+
+	/*
+		We'll also set up webhooks for our type, which we'll talk about next.
+		We just need to add them to the manager.  Since we might want to run
+		the webhooks separately, or not run them when testing our controller
+		locally, we'll put them behind an environment variable.
+
+		We'll just make sure to set `ENABLE_WEBHOOKS=false` when we run locally.
+	*/
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = (&awsauthv1alpha1.AWSAuthItem{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "AWSAuthItem")
+			os.Exit(1)
+		}
 	}
 	//+kubebuilder:scaffold:builder
 
