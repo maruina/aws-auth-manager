@@ -25,6 +25,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -41,22 +42,22 @@ func (r *AWSAuthItem) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &AWSAuthItem{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
-func (r *AWSAuthItem) ValidateCreate() error {
+func (r *AWSAuthItem) ValidateCreate() (admission.Warnings, error) {
 	awsauthitemlog.Info("validate create", "name", r.Name)
 
-	return r.validateAWSAuthItem()
+	return nil, r.validateAWSAuthItem()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type.
-func (r *AWSAuthItem) ValidateUpdate(_ runtime.Object) error {
+func (r *AWSAuthItem) ValidateUpdate(_ runtime.Object) (admission.Warnings, error) {
 	awsauthitemlog.Info("validate update", "name", r.Name)
 
-	return r.validateAWSAuthItem()
+	return nil, r.validateAWSAuthItem()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type.
-func (r *AWSAuthItem) ValidateDelete() error {
-	return nil
+func (r *AWSAuthItem) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }
 
 func (r *AWSAuthItem) validateAWSAuthItem() error {
