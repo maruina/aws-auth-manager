@@ -148,7 +148,7 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	if item.Status.ObservedGeneration != item.Generation {
 		item.Status.ObservedGeneration = item.Generation
 
-		return awsauthv1alpha1.AWSAuthItemProgressing(item), ctrl.Result{Requeue: true}, nil
+		return item.AWSAuthItemProgressing(), ctrl.Result{Requeue: true}, nil
 	}
 
 	// Get the aws-auth configMap

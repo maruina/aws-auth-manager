@@ -3,7 +3,6 @@ package controllers
 import (
 	"time"
 
-	"github.com/fluxcd/pkg/apis/meta"
 	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -114,19 +113,19 @@ var _ = Describe("AWSAuth controller", func() {
 		Eventually(func() bool {
 			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&userItem), &userItem)
 
-			return apimeta.IsStatusConditionTrue(*userItem.GetStatusConditions(), meta.ReadyCondition)
+			return apimeta.IsStatusConditionTrue(*userItem.GetStatusConditions(), awsauthv1alpha1.ReadyCondition)
 		}).Should(BeTrue())
 
 		Eventually(func() bool {
 			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&roleItem), &roleItem)
 
-			return apimeta.IsStatusConditionTrue(*roleItem.GetStatusConditions(), meta.ReadyCondition)
+			return apimeta.IsStatusConditionTrue(*roleItem.GetStatusConditions(), awsauthv1alpha1.ReadyCondition)
 		}).Should(BeTrue())
 
 		Eventually(func() bool {
 			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&mixedItem), &mixedItem)
 
-			return apimeta.IsStatusConditionTrue(*mixedItem.GetStatusConditions(), meta.ReadyCondition)
+			return apimeta.IsStatusConditionTrue(*mixedItem.GetStatusConditions(), awsauthv1alpha1.ReadyCondition)
 		}).Should(BeTrue())
 
 		By("Deleting a AWSAuthItem")

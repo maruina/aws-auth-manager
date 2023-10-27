@@ -17,11 +17,45 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/fluxcd/pkg/apis/meta"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const AWSAuthFinalizer = "finalizer.aws.maruina.k8s"
+
+const (
+	// ReadyCondition is the name of the Ready condition implemented by all toolkit
+	// resources.
+	ReadyCondition string = "Ready"
+
+	// StalledCondition is the name of the Stalled kstatus condition
+	StalledCondition string = "Stalled"
+
+	// ReconcilingCondition is the name of the Reconciling kstatus condition
+	ReconcilingCondition string = "Reconciling"
+)
+
+const (
+	// ReconciliationSucceededReason represents the fact that the reconciliation of
+	// a toolkit resource has succeeded.
+	ReconciliationSucceededReason string = "ReconciliationSucceeded"
+
+	// ReconciliationFailedReason represents the fact that the reconciliation of a
+	// toolkit resource has failed.
+	ReconciliationFailedReason string = "ReconciliationFailed"
+
+	// ProgressingReason represents the fact that the reconciliation of a toolkit
+	// resource is underway.
+	ProgressingReason string = "Progressing"
+
+	// DependencyNotReadyReason represents the fact that one of the toolkit resource
+	// dependencies is not ready.
+	DependencyNotReadyReason string = "DependencyNotReady"
+
+	// SuspendedReason represents the fact that the reconciliation of a toolkit
+	// resource is suspended.
+	SuspendedReason string = "Suspended"
+)
 
 // AWSAuthItemSpec defines the desired state of AWSAuthItem.
 type AWSAuthItemSpec struct {
@@ -82,27 +116,36 @@ type AWSAuthItemStatus struct {
 // AWSAuthItemProgressing registers progress toward
 // reconciling the given AWSAuthItem by setting the meta.ReadyCondition to
 // 'Unknown' for meta.ProgressingReason.
-func AWSAuthItemProgressing(item AWSAuthItem) AWSAuthItem {
-	item.Status.Conditions = []metav1.Condition{}
-	meta.SetResourceCondition(&item, meta.ReadyCondition, metav1.ConditionUnknown, meta.ProgressingReason,
+func (r *AWSAuthItem) AWSAuthItemProgressing() {
+	r.Status.Conditions = []metav1.Condition{}
+	r.SetResourceCondition(ReadyCondition, metav1.ConditionUnknown, ProgressingReason,
 		"Reconciliation in progress")
-
-	return item
 }
 
 // AWSAuthItemNotReady registers a failed reconciliation of the given AWSAuthItem.
-func AWSAuthItemNotReady(item AWSAuthItem, reason, message string) AWSAuthItem {
-	meta.SetResourceCondition(&item, meta.ReadyCondition, metav1.ConditionFalse, reason, message)
-
-	return item
+func (r *AWSAuthItem) AWSAuthItemNotReady(reason, message string) {
+	r.SetResourceCondition(ReadyCondition, metav1.ConditionFalse, reason, message)
 }
 
 // AWSAuthItemReady registers a successful reconciliation of the given AWSAuthItem.
-func AWSAuthItemReady(item AWSAuthItem) AWSAuthItem {
-	meta.SetResourceCondition(&item, meta.ReadyCondition, metav1.ConditionTrue, meta.ReconciliationSucceededReason,
+func (r *AWSAuthItem) AWSAuthItemReady() {
+	r.SetResourceCondition(ReadyCondition, metav1.ConditionTrue, ReconciliationSucceededReason,
 		"Item reconciliation succeeded")
+}
 
-	return item
+// SetResourceCondition sets the given condition with the given status,
+// reason and message on a resource.
+func (r *AWSAuthItem) SetResourceCondition(condition string, status metav1.ConditionStatus, reason, message string) {
+	conditions := r.GetStatusConditions()
+
+	newCondition := metav1.Condition{
+		Type:    condition,
+		Status:  status,
+		Reason:  reason,
+		Message: message,
+	}
+
+	apimeta.SetStatusCondition(conditions, newCondition)
 }
 
 // GetStatusConditions returns a pointer to the Status.Conditions slice.
