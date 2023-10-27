@@ -91,16 +91,7 @@ func (r *AWSAuthItemReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Reconcile
-	reconciledItem, reconciledResult, reconciledError := r.reconcile(ctx, item)
-
-	// Update status after reconciliation.
-	if updateStatusErr := r.patchStatus(ctx, reconciledItem); updateStatusErr != nil {
-		log.Error(updateStatusErr, "unable to update status after reconciliation")
-
-		return ctrl.Result{Requeue: true}, updateStatusErr
-	}
-
-	return reconciledResult, reconciledError
+	return r.reconcile(ctx, item)
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -141,14 +132,16 @@ func (r *AWSAuthItemReconciler) findObjectsForConfigMap(configMap client.Object)
 	return requests
 }
 
-func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) (awsauthv1alpha1.AWSAuthItem, ctrl.Result, error) {
+func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
 	// Observe AWSAuthItem generation
 	if item.Status.ObservedGeneration != item.Generation {
 		item.Status.ObservedGeneration = item.Generation
-
-		return item.AWSAuthItemProgressing(), ctrl.Result{Requeue: true}, nil
+		item.AWSAuthItemProgressing()
+		if err := r.patchStatus(ctx, item); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
 
 	// Get the aws-auth configMap
@@ -170,15 +163,19 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 
 			if createErr := r.Create(ctx, &authCm); createErr != nil {
 				log.Error(createErr, fmt.Sprintf("unable to created %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
+				item.AWSAuthItemNotReady(awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason, err.Error())
+				if err := r.patchStatus(ctx, item); err != nil {
+					return ctrl.Result{}, err
+				}
 
-				return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason, err.Error()),
-					ctrl.Result{Requeue: true}, createErr
+				return ctrl.Result{}, createErr
 			}
 		} else {
 			log.Error(err, fmt.Sprintf("unable to fetch %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
-
-			return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.GetAwsAuthConfigMapFailedReason, err.Error()),
-				ctrl.Result{Requeue: true}, err
+			item.AWSAuthItemNotReady(awsauthv1alpha1.GetAwsAuthConfigMapFailedReason, err.Error())
+			if err := r.patchStatus(ctx, item); err != nil {
+				return ctrl.Result{Requeue: true}, err
+			}
 		}
 	}
 
@@ -186,9 +183,10 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	var itemList awsauthv1alpha1.AWSAuthItemList
 	if err := r.List(ctx, &itemList); err != nil {
 		log.Error(err, "unable to list the AWSAuthItem objects")
-
-		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.ListAWSAuthItemFailedReason, err.Error()),
-			ctrl.Result{Requeue: true}, err
+		item.AWSAuthItemNotReady(awsauthv1alpha1.ListAWSAuthItemFailedReason, err.Error())
+		if err := r.patchStatus(ctx, item); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
 
 	// Get all the mapRoles and mapUsers
@@ -203,26 +201,30 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	mapRolesYaml, err := yaml.Marshal(mapRoles)
 	if err != nil {
 		log.Error(err, "unable to marshal mapRoles")
-
-		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.MarshalMapRolesFailedReason, err.Error()),
-			ctrl.Result{Requeue: true}, err
+		item.AWSAuthItemNotReady(awsauthv1alpha1.MarshalMapRolesFailedReason, err.Error())
+		if err := r.patchStatus(ctx, item); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
 
 	mapUsersYaml, err := yaml.Marshal(mapUsers)
 	if err != nil {
 		log.Error(err, "unable to marshal mapUsers")
 
-		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.MarshalMapUsersFailedReason, err.Error()),
-			ctrl.Result{Requeue: true}, err
+		item.AWSAuthItemNotReady(awsauthv1alpha1.MarshalMapUsersFailedReason, err.Error())
+		if err := r.patchStatus(ctx, item); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
 
 	// Calculate hash
 	rolesHasher := sha256.New()
 	if _, err := rolesHasher.Write(mapRolesYaml); err != nil {
 		log.Error(err, "unable to hash marshalled mapRoles")
-
-		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.HashMapRolesFailedReason, err.Error()),
-			ctrl.Result{Requeue: true}, err
+		item.AWSAuthItemNotReady(awsauthv1alpha1.HashMapRolesFailedReason, err.Error())
+		if err := r.patchStatus(ctx, item); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
 	rolesHash := hex.EncodeToString(rolesHasher.Sum(nil))
 
@@ -230,18 +232,20 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 
 	if _, err := rolesHasher.Write([]byte(authCm.Data["MapRoles"])); err != nil {
 		log.Error(err, "unable to hash MapRoles from configmap")
-
-		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.HashMapRolesFailedReason, err.Error()),
-			ctrl.Result{Requeue: true}, err
+		item.AWSAuthItemNotReady(awsauthv1alpha1.HashMapRolesFailedReason, err.Error())
+		if err := r.patchStatus(ctx, item); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
 	currentRolesHash := hex.EncodeToString(rolesHasher.Sum(nil))
 
 	usersHasher := sha256.New()
 	if _, err := usersHasher.Write(mapUsersYaml); err != nil {
 		log.Error(err, "unable to hash marshalled mapUsers")
-
-		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.HashMapUsersFailedReason, err.Error()),
-			ctrl.Result{Requeue: true}, err
+		item.AWSAuthItemNotReady(awsauthv1alpha1.HashMapUsersFailedReason, err.Error())
+		if err := r.patchStatus(ctx, item); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
 	usersHash := hex.EncodeToString(usersHasher.Sum(nil))
 
@@ -250,8 +254,10 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	if _, err := usersHasher.Write([]byte(authCm.Data["MapUsers"])); err != nil {
 		log.Error(err, "unable to hash MapUsers from configmap")
 
-		return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.HashMapUsersFailedReason, err.Error()),
-			ctrl.Result{Requeue: true}, err
+		item.AWSAuthItemNotReady(awsauthv1alpha1.HashMapUsersFailedReason, err.Error())
+		if err := r.patchStatus(ctx, item); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
 	}
 	currentUsersHash := hex.EncodeToString(usersHasher.Sum(nil))
 
@@ -269,12 +275,19 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 		if err := r.Update(ctx, &authCm); err != nil {
 			log.Error(err, fmt.Sprintf("unable to update %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
 
-			return awsauthv1alpha1.AWSAuthItemNotReady(item, awsauthv1alpha1.UpdateAwsAuthConfigMapFailedReason, err.Error()),
-				ctrl.Result{Requeue: true}, err
+			item.AWSAuthItemNotReady(awsauthv1alpha1.UpdateAwsAuthConfigMapFailedReason, err.Error())
+			if err := r.patchStatus(ctx, item); err != nil {
+				return ctrl.Result{Requeue: true}, err
+			}
 		}
 	}
 
-	return awsauthv1alpha1.AWSAuthItemReady(item), ctrl.Result{}, nil
+	item.AWSAuthItemReady()
+	if err := r.patchStatus(ctx, item); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	return ctrl.Result{}, nil
 }
 
 func (r *AWSAuthItemReconciler) reconcileDelete(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) (ctrl.Result, error) {

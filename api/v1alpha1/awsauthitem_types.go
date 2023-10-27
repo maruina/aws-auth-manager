@@ -28,9 +28,6 @@ const (
 	// resources.
 	ReadyCondition string = "Ready"
 
-	// StalledCondition is the name of the Stalled kstatus condition
-	StalledCondition string = "Stalled"
-
 	// ReconcilingCondition is the name of the Reconciling kstatus condition
 	ReconcilingCondition string = "Reconciling"
 )
@@ -47,10 +44,6 @@ const (
 	// ProgressingReason represents the fact that the reconciliation of a toolkit
 	// resource is underway.
 	ProgressingReason string = "Progressing"
-
-	// DependencyNotReadyReason represents the fact that one of the toolkit resource
-	// dependencies is not ready.
-	DependencyNotReadyReason string = "DependencyNotReady"
 
 	// SuspendedReason represents the fact that the reconciliation of a toolkit
 	// resource is suspended.
