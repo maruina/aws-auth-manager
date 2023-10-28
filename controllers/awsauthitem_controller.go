@@ -36,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 	"sigs.k8s.io/yaml"
 )
 
@@ -99,22 +98,22 @@ func (r *AWSAuthItemReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&awsauthv1alpha1.AWSAuthItem{}).
 		Watches(
-			&source.Kind{Type: &corev1.ConfigMap{}},
+			&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForConfigMap),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
 }
 
-func (r *AWSAuthItemReconciler) findObjectsForConfigMap(configMap client.Object) []reconcile.Request {
+func (r *AWSAuthItemReconciler) findObjectsForConfigMap(ctx context.Context, obj client.Object) []reconcile.Request {
 	var itemList awsauthv1alpha1.AWSAuthItemList
-	err := r.List(context.TODO(), &itemList)
+	err := r.List(ctx, &itemList)
 	if err != nil {
 		return []reconcile.Request{}
 	}
 
 	// We are only interested in the aws-auth/kube-system configmap
-	if configMap.GetName() != r.AWSAuthConfigMapName || configMap.GetNamespace() != r.AWSAuthConfigMapNamespace {
+	if obj.GetName() != r.AWSAuthConfigMapName || obj.GetNamespace() != r.AWSAuthConfigMapNamespace {
 		return []reconcile.Request{}
 	}
 
