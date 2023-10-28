@@ -26,6 +26,7 @@ linters:
     - funlen
     - dupl
     - cyclop
+    - depguard
     # deprecated linters
     - deadcode
     - golint
