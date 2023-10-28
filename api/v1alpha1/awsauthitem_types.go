@@ -28,7 +28,7 @@ const (
 	// resources.
 	ReadyCondition string = "Ready"
 
-	// ReconcilingCondition is the name of the Reconciling kstatus condition
+	// ReconcilingCondition is the name of the Reconciling kstatus condition.
 	ReconcilingCondition string = "Reconciling"
 )
 
