@@ -22,21 +22,23 @@ import (
 	"fmt"
 	"net"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 
 	//+kubebuilder:scaffold:imports
-	"k8s.io/apimachinery/pkg/runtime"
+	admissionv1 "k8s.io/api/admission/v1"
+	apimachineryruntime "k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -52,9 +54,7 @@ var (
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Webhook Suite",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "Webhook Suite")
 }
 
 var _ = BeforeSuite(func() {
@@ -66,6 +66,15 @@ var _ = BeforeSuite(func() {
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: false,
+
+		// The BinaryAssetsDirectory is only required if you want to run the tests directly
+		// without call the makefile target test. If not informed it will look for the
+		// default path defined in controller-runtime which is /usr/local/kubebuilder/.
+		// Note that you must have the required binaries setup under the bin directory to perform
+		// the tests directly. When we run make test it will be setup and used automatically.
+		BinaryAssetsDirectory: filepath.Join("..", "..", "bin", "k8s",
+			fmt.Sprintf("1.28.3-%s-%s", runtime.GOOS, runtime.GOARCH)),
+
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
 			Paths: []string{filepath.Join("..", "..", "config", "webhook")},
 		},
@@ -75,11 +84,11 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	scheme := runtime.NewScheme()
+	scheme := apimachineryruntime.NewScheme()
 	err = AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = admissionv1beta1.AddToScheme(scheme)
+	err = admissionv1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
@@ -91,12 +100,14 @@ var _ = BeforeSuite(func() {
 	// start webhook server using Manager
 	webhookInstallOptions := &testEnv.WebhookInstallOptions
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:             scheme,
-		Host:               webhookInstallOptions.LocalServingHost,
-		Port:               webhookInstallOptions.LocalServingPort,
-		CertDir:            webhookInstallOptions.LocalServingCertDir,
-		LeaderElection:     false,
-		MetricsBindAddress: "0",
+		Scheme: scheme,
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Host:    webhookInstallOptions.LocalServingHost,
+			Port:    webhookInstallOptions.LocalServingPort,
+			CertDir: webhookInstallOptions.LocalServingCertDir,
+		}),
+		LeaderElection: false,
+		Metrics:        metricsserver.Options{BindAddress: "0"},
 	})
 	Expect(err).NotTo(HaveOccurred())
 
