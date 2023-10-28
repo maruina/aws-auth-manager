@@ -26,7 +26,11 @@ linters:
     - funlen
     - dupl
     - cyclop
+    # See https://github.com/golangci/golangci-lint/issues/3906
     - depguard
+    # Temporary disable
+    - gocognit
+    - nestif
     # deprecated linters
     - deadcode
     - golint
