@@ -141,41 +141,51 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 		if err := r.patchStatus(ctx, item); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
+
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Get the aws-auth configMap
 	var authCm corev1.ConfigMap
-	if err := r.Get(ctx, types.NamespacedName{Name: r.AWSAuthConfigMapName, Namespace: r.AWSAuthConfigMapNamespace}, &authCm); err != nil {
-		// Create the aws-auth configmap if it doesn't exist
-		if errors.IsNotFound(err) {
-			authCm = corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        r.AWSAuthConfigMapName,
-					Namespace:   r.AWSAuthConfigMapNamespace,
-					Annotations: make(map[string]string),
-				},
-				Data: map[string]string{
-					"MapUsers": "",
-					"MapRoles": "",
-				},
-			}
+	err := r.Get(ctx, types.NamespacedName{Name: r.AWSAuthConfigMapName, Namespace: r.AWSAuthConfigMapNamespace}, &authCm)
 
-			if createErr := r.Create(ctx, &authCm); createErr != nil {
-				log.Error(createErr, fmt.Sprintf("unable to created %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
-				item.AWSAuthItemNotReady(awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason, err.Error())
-				if err := r.patchStatus(ctx, item); err != nil {
-					return ctrl.Result{}, err
-				}
-
-				return ctrl.Result{}, createErr
-			}
-		} else {
-			log.Error(err, fmt.Sprintf("unable to fetch %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
-			item.AWSAuthItemNotReady(awsauthv1alpha1.GetAwsAuthConfigMapFailedReason, err.Error())
-			if err := r.patchStatus(ctx, item); err != nil {
-				return ctrl.Result{Requeue: true}, err
-			}
+	// Create the aws-auth configmap if it doesn't exist
+	if errors.IsNotFound(err) {
+		authCm = corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        r.AWSAuthConfigMapName,
+				Namespace:   r.AWSAuthConfigMapNamespace,
+				Annotations: make(map[string]string),
+			},
+			Data: map[string]string{
+				"MapUsers": "",
+				"MapRoles": "",
+			},
 		}
+
+		createErr := r.Create(ctx, &authCm)
+		if createErr != nil {
+			log.Error(createErr, fmt.Sprintf("unable to created %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
+			item.AWSAuthItemNotReady(awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason, err.Error())
+			if err := r.patchStatus(ctx, item); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, createErr
+		}
+
+		return ctrl.Result{Requeue: true}, nil
+	}
+
+	// Return if there is an error creating the aws auth configmap
+	if err != nil {
+		log.Error(err, fmt.Sprintf("unable to fetch %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
+		item.AWSAuthItemNotReady(awsauthv1alpha1.GetAwsAuthConfigMapFailedReason, err.Error())
+		if err := r.patchStatus(ctx, item); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, err
 	}
 
 	// Get all the AWSAuthItem
