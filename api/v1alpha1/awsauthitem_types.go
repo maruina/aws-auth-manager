@@ -21,7 +21,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const AWSAuthFinalizer = "finalizer.aws.maruina.k8s"
+const (
+	AWSAuthFinalizer       = "finalizer.aws-auth-manager.maruina.k8s"
+	AWSAuthAnnotationKey   = "aws-auth-manager.maruina.k8s/managed"
+	AWSAuthAnnotationValue = "true"
+)
 
 const (
 	// ReadyCondition is the name of the Ready condition implemented by all toolkit

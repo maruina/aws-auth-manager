@@ -153,9 +153,11 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	if errors.IsNotFound(err) {
 		authCm = corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        r.AWSAuthConfigMapName,
-				Namespace:   r.AWSAuthConfigMapNamespace,
-				Annotations: make(map[string]string),
+				Name:      r.AWSAuthConfigMapName,
+				Namespace: r.AWSAuthConfigMapNamespace,
+				Annotations: map[string]string{
+					awsauthv1alpha1.AWSAuthAnnotationKey: awsauthv1alpha1.AWSAuthAnnotationValue,
+				},
 			},
 			Data: map[string]string{
 				"MapUsers": "",
