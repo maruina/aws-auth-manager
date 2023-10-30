@@ -18,8 +18,6 @@ package controllers
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 
 	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
@@ -141,41 +139,53 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 		if err := r.patchStatus(ctx, item); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
+
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Get the aws-auth configMap
 	var authCm corev1.ConfigMap
-	if err := r.Get(ctx, types.NamespacedName{Name: r.AWSAuthConfigMapName, Namespace: r.AWSAuthConfigMapNamespace}, &authCm); err != nil {
-		// Create the aws-auth configmap if it doesn't exist
-		if errors.IsNotFound(err) {
-			authCm = corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        r.AWSAuthConfigMapName,
-					Namespace:   r.AWSAuthConfigMapNamespace,
-					Annotations: make(map[string]string),
-				},
-				Data: map[string]string{
-					"MapUsers": "",
-					"MapRoles": "",
-				},
-			}
+	err := r.Get(ctx, types.NamespacedName{Name: r.AWSAuthConfigMapName, Namespace: r.AWSAuthConfigMapNamespace}, &authCm)
 
-			if createErr := r.Create(ctx, &authCm); createErr != nil {
-				log.Error(createErr, fmt.Sprintf("unable to created %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
-				item.AWSAuthItemNotReady(awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason, err.Error())
-				if err := r.patchStatus(ctx, item); err != nil {
-					return ctrl.Result{}, err
-				}
-
-				return ctrl.Result{}, createErr
-			}
-		} else {
-			log.Error(err, fmt.Sprintf("unable to fetch %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
-			item.AWSAuthItemNotReady(awsauthv1alpha1.GetAwsAuthConfigMapFailedReason, err.Error())
-			if err := r.patchStatus(ctx, item); err != nil {
-				return ctrl.Result{Requeue: true}, err
-			}
+	// Create the aws-auth configmap if it doesn't exist
+	if errors.IsNotFound(err) {
+		authCm = corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      r.AWSAuthConfigMapName,
+				Namespace: r.AWSAuthConfigMapNamespace,
+				Annotations: map[string]string{
+					awsauthv1alpha1.AWSAuthAnnotationKey: awsauthv1alpha1.AWSAuthAnnotationValue,
+				},
+			},
+			Data: map[string]string{
+				"MapUsers": "",
+				"MapRoles": "",
+			},
 		}
+
+		createErr := r.Create(ctx, &authCm)
+		if createErr != nil {
+			log.Error(createErr, fmt.Sprintf("unable to created %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
+			item.AWSAuthItemNotReady(awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason, err.Error())
+			if err := r.patchStatus(ctx, item); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, createErr
+		}
+
+		return ctrl.Result{Requeue: true}, nil
+	}
+
+	// Return if there is an error creating the aws auth configmap
+	if err != nil {
+		log.Error(err, fmt.Sprintf("unable to fetch %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
+		item.AWSAuthItemNotReady(awsauthv1alpha1.GetAwsAuthConfigMapFailedReason, err.Error())
+		if err := r.patchStatus(ctx, item); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{}, err
 	}
 
 	// Get all the AWSAuthItem
@@ -216,69 +226,18 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 		}
 	}
 
-	// Calculate hash
-	rolesHasher := sha256.New()
-	if _, err := rolesHasher.Write(mapRolesYaml); err != nil {
-		log.Error(err, "unable to hash marshalled mapRoles")
-		item.AWSAuthItemNotReady(awsauthv1alpha1.HashMapRolesFailedReason, err.Error())
+	// Update the configmap
+	authCm.Data["MapRoles"] = string(mapRolesYaml)
+	authCm.Data["MapUsers"] = string(mapUsersYaml)
+
+	if err := r.Update(ctx, &authCm); err != nil {
+		log.Error(err, fmt.Sprintf("unable to update %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
+		item.AWSAuthItemNotReady(awsauthv1alpha1.UpdateAwsAuthConfigMapFailedReason, err.Error())
 		if err := r.patchStatus(ctx, item); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
-	}
-	rolesHash := hex.EncodeToString(rolesHasher.Sum(nil))
 
-	rolesHasher.Reset()
-
-	if _, err := rolesHasher.Write([]byte(authCm.Data["MapRoles"])); err != nil {
-		log.Error(err, "unable to hash MapRoles from configmap")
-		item.AWSAuthItemNotReady(awsauthv1alpha1.HashMapRolesFailedReason, err.Error())
-		if err := r.patchStatus(ctx, item); err != nil {
-			return ctrl.Result{Requeue: true}, err
-		}
-	}
-	currentRolesHash := hex.EncodeToString(rolesHasher.Sum(nil))
-
-	usersHasher := sha256.New()
-	if _, err := usersHasher.Write(mapUsersYaml); err != nil {
-		log.Error(err, "unable to hash marshalled mapUsers")
-		item.AWSAuthItemNotReady(awsauthv1alpha1.HashMapUsersFailedReason, err.Error())
-		if err := r.patchStatus(ctx, item); err != nil {
-			return ctrl.Result{Requeue: true}, err
-		}
-	}
-	usersHash := hex.EncodeToString(usersHasher.Sum(nil))
-
-	usersHasher.Reset()
-
-	if _, err := usersHasher.Write([]byte(authCm.Data["MapUsers"])); err != nil {
-		log.Error(err, "unable to hash MapUsers from configmap")
-
-		item.AWSAuthItemNotReady(awsauthv1alpha1.HashMapUsersFailedReason, err.Error())
-		if err := r.patchStatus(ctx, item); err != nil {
-			return ctrl.Result{Requeue: true}, err
-		}
-	}
-	currentUsersHash := hex.EncodeToString(usersHasher.Sum(nil))
-
-	// If the hash is different we need to update the configmap
-	if rolesHash != currentRolesHash || usersHash != currentUsersHash {
-		authCm.Data["MapRoles"] = string(mapRolesYaml)
-		authCm.Data["MapUsers"] = string(mapUsersYaml)
-
-		if authCm.ObjectMeta.Annotations == nil {
-			authCm.ObjectMeta.Annotations = make(map[string]string)
-		}
-		authCm.ObjectMeta.Annotations[MapRolesAnnotation] = rolesHash
-		authCm.ObjectMeta.Annotations[MapUsersAnnotation] = usersHash
-
-		if err := r.Update(ctx, &authCm); err != nil {
-			log.Error(err, fmt.Sprintf("unable to update %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
-
-			item.AWSAuthItemNotReady(awsauthv1alpha1.UpdateAwsAuthConfigMapFailedReason, err.Error())
-			if err := r.patchStatus(ctx, item); err != nil {
-				return ctrl.Result{Requeue: true}, err
-			}
-		}
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	item.AWSAuthItemReady()
