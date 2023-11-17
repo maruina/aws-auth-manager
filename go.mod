@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.23.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/ginkgo/v2 v2.13.1
-	github.com/onsi/gomega v1.29.0
+	github.com/onsi/gomega v1.30.0
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
 	k8s.io/client-go v0.28.4
