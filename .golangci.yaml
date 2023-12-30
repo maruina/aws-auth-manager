@@ -38,3 +38,10 @@ linters:
     - ifshort
     - maligned
   enable-all: true
+linters-settings:
+  revive:
+    rules:
+      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#dot-imports
+      - name: dot-imports
+        severity: warning
+        disabled: true
