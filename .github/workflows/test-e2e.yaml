@@ -15,7 +15,7 @@ jobs:
       CLUSTER: kind
       CERT_MANAGER: v1.7.1
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v4.1.4
 
       - uses: actions/setup-go@v5
         with:
