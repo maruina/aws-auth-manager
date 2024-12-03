@@ -2,7 +2,7 @@ module github.com/maruina/aws-auth-manager
 
 go 1.22.0
 
-toolchain go1.22.5
+toolchain go1.23.4
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.32.5
