@@ -6,7 +6,7 @@ toolchain go1.22.5
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.36.3
-	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/ginkgo/v2 v2.27.1
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	k8s.io/api v0.31.3
