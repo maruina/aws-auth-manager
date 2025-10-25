@@ -13,7 +13,7 @@ jobs:
     env:
       IMG: controller:kind
       CLUSTER: kind
-      CERT_MANAGER: v1.7.1
+      CERT_MANAGER: v1.16.2
     steps:
       - uses: actions/setup-go@v6
         with:

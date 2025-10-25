@@ -3,7 +3,6 @@ version: "2"
 linters:
   default: all
   disable:
-    - gci
     - wrapcheck
     - gomnd
     - scopelint
@@ -47,3 +46,7 @@ linters:
         - name: dot-imports
           severity: warning
           disabled: true
+
+formatters:
+  disable:
+    - gci
