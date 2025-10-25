@@ -36,6 +36,12 @@ jobs:
       - name: Install manifests
         run: make deploy
 
+      - name: Wait for cert-manager to be ready
+        run: |
+          kubectl wait --for=condition=available --timeout=300s deployment/cert-manager -n cert-manager
+          kubectl wait --for=condition=available --timeout=300s deployment/cert-manager-webhook -n cert-manager
+          kubectl wait --for=condition=available --timeout=300s deployment/cert-manager-cainjector -n cert-manager
+
       - name: Wait for controller to be ready
         run: |
           count=0
@@ -43,12 +49,18 @@ jobs:
             echo -n '.'
             sleep 5
             count=$((count + 1))
-            if [[ ${count} -eq 6 ]]; then
+            if [[ ${count} -eq 12 ]]; then
               echo ' No more retries left!'
               exit 1
             fi
           done
           echo ' done'
+
+      - name: Wait for webhook service to be ready
+        run: |
+          echo "Waiting for webhook certificates to be issued..."
+          sleep 10
+          kubectl wait --for=condition=ready --timeout=60s certificate/aws-auth-manager-serving-cert -n aws-auth-manager-system || true
 
       - name: Deploy example AWSAuthItem
         run: kubectl apply -f config/samples/mixed.yaml
