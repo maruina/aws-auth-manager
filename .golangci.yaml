@@ -48,5 +48,5 @@ linters:
           disabled: true
 
 formatters:
-  disable:
-    - gci
+  # Don't enable any formatters (gci would be enabled by default otherwise)
+  enable: []
