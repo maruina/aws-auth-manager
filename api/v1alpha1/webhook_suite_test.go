@@ -130,7 +130,7 @@ var _ = BeforeSuite(func(suiteCtx SpecContext) {
 		if err != nil {
 			return err
 		}
-		conn.Close()
+		_ = conn.Close()
 
 		return nil
 	}).Should(Succeed())
