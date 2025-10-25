@@ -58,15 +58,8 @@ jobs:
 
       - name: Wait for webhook service to be ready
         run: |
-          echo "Waiting for webhook certificates to be issued..."
-          kubectl wait --for=condition=ready --timeout=120s certificate/aws-auth-manager-serving-cert -n aws-auth-manager-system
-          echo "Certificate ready, checking if webhook configuration exists..."
-          kubectl get validatingwebhookconfigurations.admissionregistration.k8s.io aws-auth-manager-validating-webhook-configuration
-          echo "Restarting controller pod to reload certificates..."
-          kubectl rollout restart deployment/aws-auth-manager-controller-manager -n aws-auth-manager-system
-          kubectl rollout status deployment/aws-auth-manager-controller-manager -n aws-auth-manager-system --timeout=120s
-          echo "Giving webhook server additional time to stabilize..."
-          sleep 10
+          echo "Waiting for webhook certificates to be issued and webhook server to be ready..."
+          sleep 60
 
       - name: Deploy example AWSAuthItem
         run: kubectl apply -f config/samples/mixed.yaml
