@@ -1,6 +1,7 @@
-version: 2
+version: "2"
 
 linters:
+  default: all
   disable:
     - gci
     - wrapcheck
@@ -30,7 +31,7 @@ linters:
     - cyclop
     # See https://github.com/golangci/golangci-lint/issues/3906
     - depguard
-    # deprecated linters
+    # deprecated linters (removed in v2)
     - deadcode
     - golint
     - interfacer
@@ -39,8 +40,8 @@ linters:
     - nosnakecase
     - ifshort
     - maligned
-  enable-all: true
-linters-settings:
+
+settings:
   revive:
     rules:
       # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#dot-imports
