@@ -26,3 +26,6 @@ testbin/*
 
 # chart testing temp files
 ct_*
+
+# Claude Code
+.claude
