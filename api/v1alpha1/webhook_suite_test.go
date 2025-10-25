@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	//+kubebuilder:scaffold:imports
@@ -57,7 +57,7 @@ func TestAPIs(t *testing.T) {
 	RunSpecs(t, "Webhook Suite")
 }
 
-var _ = BeforeSuite(func() {
+var _ = BeforeSuite(func(suiteCtx SpecContext) {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	ctx, cancel = context.WithCancel(context.TODO())
@@ -134,7 +134,7 @@ var _ = BeforeSuite(func() {
 
 		return nil
 	}).Should(Succeed())
-}, 60)
+}, NodeTimeout(60*time.Second))
 
 var _ = AfterSuite(func() {
 	cancel()
