@@ -13,13 +13,13 @@ jobs:
     env:
       IMG: controller:kind
       CLUSTER: kind
-      CERT_MANAGER: v1.7.1
+      CERT_MANAGER: v1.16.2
     steps:
-      - uses: actions/checkout@v4.2.2
-
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
-          go-version: 1.21
+          go-version: ^1.25
+
+      - uses: actions/checkout@v5
 
       - name: Create kind cluster
         run: make setup-e2e
@@ -36,6 +36,12 @@ jobs:
       - name: Install manifests
         run: make deploy
 
+      - name: Wait for cert-manager to be ready
+        run: |
+          kubectl wait --for=condition=available --timeout=300s deployment/cert-manager -n cert-manager
+          kubectl wait --for=condition=available --timeout=300s deployment/cert-manager-webhook -n cert-manager
+          kubectl wait --for=condition=available --timeout=300s deployment/cert-manager-cainjector -n cert-manager
+
       - name: Wait for controller to be ready
         run: |
           count=0
@@ -43,12 +49,17 @@ jobs:
             echo -n '.'
             sleep 5
             count=$((count + 1))
-            if [[ ${count} -eq 6 ]]; then
+            if [[ ${count} -eq 12 ]]; then
               echo ' No more retries left!'
               exit 1
             fi
           done
           echo ' done'
+
+      - name: Wait for webhook service to be ready
+        run: |
+          echo "Waiting for webhook certificates to be issued and webhook server to be ready..."
+          sleep 60
 
       - name: Deploy example AWSAuthItem
         run: kubectl apply -f config/samples/mixed.yaml

@@ -83,7 +83,7 @@ func (r *AWSAuthItemReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// If the object is being deleted, cleanup and remove the finalizer
-	if !item.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !item.DeletionTimestamp.IsZero() {
 		return r.reconcileDelete(ctx, item)
 	}
 
@@ -265,8 +265,8 @@ func (r *AWSAuthItemReconciler) reconcileDelete(ctx context.Context, item awsaut
 		return ctrl.Result{}, err
 	}
 
-	authCm.ObjectMeta.Annotations[MapRolesAnnotation] = ""
-	authCm.ObjectMeta.Annotations[MapUsersAnnotation] = ""
+	authCm.Annotations[MapRolesAnnotation] = ""
+	authCm.Annotations[MapUsersAnnotation] = ""
 
 	if err := r.Update(ctx, &authCm); err != nil {
 		log.Error(err, fmt.Sprintf("unable to update %s/%s configmap when deleting the AWSAuthItem object", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
@@ -286,7 +286,7 @@ func (r *AWSAuthItemReconciler) reconcileDelete(ctx context.Context, item awsaut
 func (r *AWSAuthItemReconciler) patchStatus(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) error {
 	var latest awsauthv1alpha1.AWSAuthItem
 
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&item), &latest); err != nil {
+	if err := r.Get(ctx, client.ObjectKeyFromObject(&item), &latest); err != nil {
 		return err
 	}
 
