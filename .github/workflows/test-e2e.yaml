@@ -19,7 +19,7 @@ jobs:
         with:
           go-version: ^1.25
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Create kind cluster
         run: make setup-e2e
