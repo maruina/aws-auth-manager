@@ -144,17 +144,6 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 		return ctrl.Result{}, nil
 	}
 
-	// Observe AWSAuthItem generation
-	if item.Status.ObservedGeneration != item.Generation {
-		item.Status.ObservedGeneration = item.Generation
-		item.AWSAuthItemProgressing()
-		if err := r.patchStatus(ctx, item); err != nil {
-			return ctrl.Result{Requeue: true}, fmt.Errorf("patching status for progressing: %w", err)
-		}
-
-		return ctrl.Result{Requeue: true}, nil
-	}
-
 	// Get the aws-auth configMap
 	var authCm corev1.ConfigMap
 	err := r.Get(ctx, types.NamespacedName{Name: r.AWSAuthConfigMapName, Namespace: r.AWSAuthConfigMapNamespace}, &authCm)
@@ -257,12 +246,14 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 		return ctrl.Result{Requeue: true}, fmt.Errorf("patching aws-auth ConfigMap: %w", err)
 	}
 
+	// Update status only after successful reconciliation
 	r.Recorder.Event(&item, corev1.EventTypeNormal, awsauthv1alpha1.ReconciliationSucceededReason,
 		"aws-auth ConfigMap updated successfully")
+	item.Status.ObservedGeneration = item.Generation
 	item.AWSAuthItemReady()
 	item.ClearStalledCondition()
 	if err := r.patchStatus(ctx, item); err != nil {
-		return ctrl.Result{Requeue: true}, fmt.Errorf("patching status for ready: %w", err)
+		return ctrl.Result{Requeue: true}, fmt.Errorf("patching status: %w", err)
 	}
 
 	return ctrl.Result{}, nil
