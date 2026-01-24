@@ -21,7 +21,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,31 +32,31 @@ import (
 var awsauthitemlog = logf.Log.WithName("awsauthitem-resource")
 
 func (r *AWSAuthItem) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr, r).
-		WithCustomValidator(r).
+	return ctrl.NewWebhookManagedBy[*AWSAuthItem](mgr, r).
+		WithValidator(r).
 		Complete()
 }
 
 //+kubebuilder:webhook:path=/validate-aws-maruina-k8s-v1alpha1-awsauthitem,mutating=false,failurePolicy=fail,sideEffects=None,groups=aws.maruina.k8s,resources=awsauthitems,verbs=create;update,versions=v1alpha1,name=vawsauthitem.aws.maruina.k8s,admissionReviewVersions=v1
 
-var _ admission.CustomValidator = &AWSAuthItem{}
+var _ admission.Validator[*AWSAuthItem] = &AWSAuthItem{}
 
-// ValidateCreate implements admission.CustomValidator so a webhook will be registered for the type.
-func (r *AWSAuthItem) ValidateCreate(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+// ValidateCreate implements admission.Validator so a webhook will be registered for the type.
+func (r *AWSAuthItem) ValidateCreate(_ context.Context, _ *AWSAuthItem) (admission.Warnings, error) {
 	awsauthitemlog.Info("validate create", "name", r.Name)
 
 	return nil, r.validateAWSAuthItem()
 }
 
-// ValidateUpdate implements admission.CustomValidator so a webhook will be registered for the type.
-func (r *AWSAuthItem) ValidateUpdate(_ context.Context, _ runtime.Object, _ runtime.Object) (admission.Warnings, error) {
+// ValidateUpdate implements admission.Validator so a webhook will be registered for the type.
+func (r *AWSAuthItem) ValidateUpdate(_ context.Context, _, _ *AWSAuthItem) (admission.Warnings, error) {
 	awsauthitemlog.Info("validate update", "name", r.Name)
 
 	return nil, r.validateAWSAuthItem()
 }
 
-// ValidateDelete implements admission.CustomValidator so a webhook will be registered for the type.
-func (r *AWSAuthItem) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+// ValidateDelete implements admission.Validator so a webhook will be registered for the type.
+func (r *AWSAuthItem) ValidateDelete(_ context.Context, _ *AWSAuthItem) (admission.Warnings, error) {
 	return nil, nil
 }
 
