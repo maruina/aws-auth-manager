@@ -13,6 +13,7 @@ jobs:
     env:
       IMG: controller:kind
       CLUSTER: kind
+      # renovate: datasource=github-releases depName=cert-manager/cert-manager
       CERT_MANAGER: v1.16.2
     steps:
       - uses: actions/checkout@v6
