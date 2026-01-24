@@ -45,6 +45,26 @@ spec:
 
 - [cert-manager](https://cert-manager.io/docs/)
 
+## Development
+
+### Running Tests
+
+```console
+make test
+```
+
+This runs unit and integration tests using [envtest](https://book.kubebuilder.io/reference/envtest.html) which provides a local control plane (etcd and kube-apiserver) without requiring a full Kubernetes cluster.
+
+### End-to-End Tests
+
+To run e2e tests against a real cluster:
+
+```console
+make setup-e2e   # Creates a kind cluster with cert-manager
+make e2e         # Runs tests against the cluster
+make teardown-e2e # Deletes the kind cluster
+```
+
 ## Install
 
 ```console
