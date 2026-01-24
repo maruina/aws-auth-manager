@@ -3,7 +3,9 @@
 IMG ?= ghcr.io/maruina/aws-auth-manager:latest
 CLUSTER ?= aws-auth-manager
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+# renovate: datasource=github-releases depName=kubernetes/kubernetes
 ENVTEST_K8S_VERSION = 1.34
+# renovate: datasource=github-releases depName=cert-manager/cert-manager
 CERT_MANAGER_VERSION = v1.16.2
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -140,7 +142,9 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
+# renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.+)$
 KUSTOMIZE_VERSION ?= v5.5.0
+# renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
 CONTROLLER_TOOLS_VERSION ?= v0.17.2
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
