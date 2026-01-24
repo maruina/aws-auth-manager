@@ -3,7 +3,6 @@ package controllers
 import (
 	"strings"
 
-	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 )
 
 // cleanupAWSAuthItem deletes the item and waits for deletion to complete.

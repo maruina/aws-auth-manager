@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/yaml"
+
+	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 )
 
 // AWSAuthItemReconciler reconciles a AWSAuthItem object.

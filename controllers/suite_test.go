@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -38,6 +37,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/yaml"
+
+	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
