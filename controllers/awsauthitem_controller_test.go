@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"strings"
+
 	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -12,6 +14,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// cleanupAWSAuthItem deletes the item and waits for deletion to complete.
+// Intended for use with DeferCleanup.
+func cleanupAWSAuthItem(item *awsauthv1alpha1.AWSAuthItem) {
+	if item == nil {
+		return
+	}
+	err := k8sClient.Delete(ctx, item)
+	if err != nil && !apierrors.IsNotFound(err) {
+		Expect(err).NotTo(HaveOccurred())
+	}
+	Eventually(func() bool {
+		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(item), item)
+		return apierrors.IsNotFound(err)
+	}).Should(BeTrue())
+}
+
 var _ = Describe("AWSAuthItem controller", func() {
 	SetDefaultEventuallyTimeout(eventuallyTimeout)
 	SetDefaultEventuallyPollingInterval(eventuallyInterval)
@@ -19,24 +37,8 @@ var _ = Describe("AWSAuthItem controller", func() {
 	SetDefaultConsistentlyPollingInterval(consistentlyInterval)
 
 	Context("when creating an AWSAuthItem", func() {
-		var item *awsauthv1alpha1.AWSAuthItem
-
-		AfterEach(func() {
-			if item != nil {
-				err := k8sClient.Delete(ctx, item)
-				if err != nil && !apierrors.IsNotFound(err) {
-					Expect(err).NotTo(HaveOccurred())
-				}
-				// Wait for deletion to complete
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(item), item)
-					return apierrors.IsNotFound(err)
-				}).Should(BeTrue())
-			}
-		})
-
 		It("should add finalizer", func() {
-			item = &awsauthv1alpha1.AWSAuthItem{
+			item := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      uniqueName("finalizer-test"),
 					Namespace: reconciler.AWSAuthConfigMapNamespace,
@@ -52,6 +54,7 @@ var _ = Describe("AWSAuthItem controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, item)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, item)
 
 			Eventually(func(g Gomega) {
 				var fetched awsauthv1alpha1.AWSAuthItem
@@ -74,7 +77,7 @@ var _ = Describe("AWSAuthItem controller", func() {
 				return apierrors.IsNotFound(err)
 			}).Should(BeTrue())
 
-			item = &awsauthv1alpha1.AWSAuthItem{
+			item := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      uniqueName("create-cm-test"),
 					Namespace: reconciler.AWSAuthConfigMapNamespace,
@@ -90,6 +93,7 @@ var _ = Describe("AWSAuthItem controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, item)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, item)
 
 			Eventually(func(g Gomega) {
 				cm, err := getAWSAuthConfigMap()
@@ -102,64 +106,10 @@ var _ = Describe("AWSAuthItem controller", func() {
 			}).Should(Succeed())
 		})
 
-		It("should update ConfigMap with mapUsers", func() {
-			expectedUsers := []awsauthv1alpha1.MapUserItem{
-				{
-					UserArn:  "arn:aws:iam::111122223333:user/user-test",
-					Username: "user-test",
-					Groups:   []string{"system:masters"},
-				},
-			}
-			item = &awsauthv1alpha1.AWSAuthItem{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      uniqueName("user-test"),
-					Namespace: reconciler.AWSAuthConfigMapNamespace,
-				},
-				Spec: awsauthv1alpha1.AWSAuthItemSpec{
-					MapUsers: expectedUsers,
-				},
-			}
-			Expect(k8sClient.Create(ctx, item)).To(Succeed())
-
-			Eventually(func(g Gomega) {
-				cm, err := getAWSAuthConfigMap()
-				g.Expect(err).NotTo(HaveOccurred())
-				users, err := getMapUsersFromConfigMap(cm)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(users).To(ContainElements(expectedUsers))
-			}).Should(Succeed())
-		})
-
-		It("should update ConfigMap with mapRoles", func() {
-			expectedRoles := []awsauthv1alpha1.MapRoleItem{
-				{
-					RoleArn:  "arn:aws:iam::111122223333:role/role-test",
-					Username: "system:node:{{EC2PrivateDNSName}}",
-					Groups:   []string{"system:bootstrappers", "system:nodes"},
-				},
-			}
-			item = &awsauthv1alpha1.AWSAuthItem{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      uniqueName("role-test"),
-					Namespace: reconciler.AWSAuthConfigMapNamespace,
-				},
-				Spec: awsauthv1alpha1.AWSAuthItemSpec{
-					MapRoles: expectedRoles,
-				},
-			}
-			Expect(k8sClient.Create(ctx, item)).To(Succeed())
-
-			Eventually(func(g Gomega) {
-				cm, err := getAWSAuthConfigMap()
-				g.Expect(err).NotTo(HaveOccurred())
-				roles, err := getMapRolesFromConfigMap(cm)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(roles).To(ContainElements(expectedRoles))
-			}).Should(Succeed())
-		})
-
 		It("should set Ready condition to True", func() {
-			item = &awsauthv1alpha1.AWSAuthItem{
+			drainEvents()
+
+			item := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      uniqueName("ready-test"),
 					Namespace: reconciler.AWSAuthConfigMapNamespace,
@@ -175,6 +125,7 @@ var _ = Describe("AWSAuthItem controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, item)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, item)
 
 			Eventually(func(g Gomega) {
 				var fetched awsauthv1alpha1.AWSAuthItem
@@ -184,10 +135,20 @@ var _ = Describe("AWSAuthItem controller", func() {
 				g.Expect(cond).NotTo(BeNil())
 				g.Expect(cond.Reason).To(Equal(awsauthv1alpha1.ReconciliationSucceededReason))
 			}).Should(Succeed())
+
+			// Verify event was emitted
+			Eventually(func() bool {
+				select {
+				case event := <-fakeRecorder.Events:
+					return strings.Contains(event, "ReconciliationSucceeded")
+				default:
+					return false
+				}
+			}).Should(BeTrue())
 		})
 
 		It("should set ObservedGeneration", func() {
-			item = &awsauthv1alpha1.AWSAuthItem{
+			item := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      uniqueName("observed-gen-test"),
 					Namespace: reconciler.AWSAuthConfigMapNamespace,
@@ -203,6 +164,7 @@ var _ = Describe("AWSAuthItem controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, item)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, item)
 
 			Eventually(func(g Gomega) {
 				var fetched awsauthv1alpha1.AWSAuthItem
@@ -211,32 +173,145 @@ var _ = Describe("AWSAuthItem controller", func() {
 				g.Expect(fetched.Status.ObservedGeneration).To(Equal(fetched.Generation))
 			}).Should(Succeed())
 		})
+
+		It("should handle empty AWSAuthItem without mapUsers or mapRoles", func() {
+			item := &awsauthv1alpha1.AWSAuthItem{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      uniqueName("empty-spec-test"),
+					Namespace: reconciler.AWSAuthConfigMapNamespace,
+				},
+				Spec: awsauthv1alpha1.AWSAuthItemSpec{
+					// Empty spec - no mapUsers or mapRoles
+				},
+			}
+			Expect(k8sClient.Create(ctx, item)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, item)
+
+			// Should become Ready
+			Eventually(func(g Gomega) {
+				var fetched awsauthv1alpha1.AWSAuthItem
+				g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(item), &fetched)).To(Succeed())
+				g.Expect(apimeta.IsStatusConditionTrue(fetched.Status.Conditions, awsauthv1alpha1.ReadyCondition)).To(BeTrue())
+			}).Should(Succeed())
+
+			// ConfigMap should exist and be valid (not corrupted)
+			Eventually(func(g Gomega) {
+				cm, err := getAWSAuthConfigMap()
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(cm).NotTo(BeNil())
+				// Verify data is valid YAML (or empty)
+				_, err = getMapUsersFromConfigMap(cm)
+				g.Expect(err).NotTo(HaveOccurred())
+				_, err = getMapRolesFromConfigMap(cm)
+				g.Expect(err).NotTo(HaveOccurred())
+			}).Should(Succeed())
+		})
+
+		// Table-driven tests for mapUsers and mapRoles
+		DescribeTable("should update ConfigMap with mapped entries",
+			func(createSpec func() awsauthv1alpha1.AWSAuthItemSpec,
+				validate func(g Gomega, cm *corev1.ConfigMap)) {
+				spec := createSpec()
+				item := &awsauthv1alpha1.AWSAuthItem{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      uniqueName("table-test"),
+						Namespace: reconciler.AWSAuthConfigMapNamespace,
+					},
+					Spec: spec,
+				}
+				Expect(k8sClient.Create(ctx, item)).To(Succeed())
+				DeferCleanup(cleanupAWSAuthItem, item)
+
+				Eventually(func(g Gomega) {
+					cm, err := getAWSAuthConfigMap()
+					g.Expect(err).NotTo(HaveOccurred())
+					validate(g, cm)
+				}).Should(Succeed())
+			},
+			Entry("mapUsers only",
+				func() awsauthv1alpha1.AWSAuthItemSpec {
+					return awsauthv1alpha1.AWSAuthItemSpec{
+						MapUsers: []awsauthv1alpha1.MapUserItem{
+							{
+								UserArn:  "arn:aws:iam::111122223333:user/table-user",
+								Username: "table-user",
+								Groups:   []string{"system:masters"},
+							},
+						},
+					}
+				},
+				func(g Gomega, cm *corev1.ConfigMap) {
+					users, err := getMapUsersFromConfigMap(cm)
+					g.Expect(err).NotTo(HaveOccurred())
+					g.Expect(users).To(ContainElement(awsauthv1alpha1.MapUserItem{
+						UserArn:  "arn:aws:iam::111122223333:user/table-user",
+						Username: "table-user",
+						Groups:   []string{"system:masters"},
+					}))
+				},
+			),
+			Entry("mapRoles only",
+				func() awsauthv1alpha1.AWSAuthItemSpec {
+					return awsauthv1alpha1.AWSAuthItemSpec{
+						MapRoles: []awsauthv1alpha1.MapRoleItem{
+							{
+								RoleArn:  "arn:aws:iam::111122223333:role/table-role",
+								Username: "system:node:{{EC2PrivateDNSName}}",
+								Groups:   []string{"system:bootstrappers", "system:nodes"},
+							},
+						},
+					}
+				},
+				func(g Gomega, cm *corev1.ConfigMap) {
+					roles, err := getMapRolesFromConfigMap(cm)
+					g.Expect(err).NotTo(HaveOccurred())
+					g.Expect(roles).To(ContainElement(awsauthv1alpha1.MapRoleItem{
+						RoleArn:  "arn:aws:iam::111122223333:role/table-role",
+						Username: "system:node:{{EC2PrivateDNSName}}",
+						Groups:   []string{"system:bootstrappers", "system:nodes"},
+					}))
+				},
+			),
+			Entry("both mapUsers and mapRoles",
+				func() awsauthv1alpha1.AWSAuthItemSpec {
+					return awsauthv1alpha1.AWSAuthItemSpec{
+						MapUsers: []awsauthv1alpha1.MapUserItem{
+							{
+								UserArn:  "arn:aws:iam::111122223333:user/both-user",
+								Username: "both-user",
+								Groups:   []string{"view"},
+							},
+						},
+						MapRoles: []awsauthv1alpha1.MapRoleItem{
+							{
+								RoleArn:  "arn:aws:iam::111122223333:role/both-role",
+								Username: "both-role-user",
+								Groups:   []string{"edit"},
+							},
+						},
+					}
+				},
+				func(g Gomega, cm *corev1.ConfigMap) {
+					users, err := getMapUsersFromConfigMap(cm)
+					g.Expect(err).NotTo(HaveOccurred())
+					g.Expect(users).To(ContainElement(awsauthv1alpha1.MapUserItem{
+						UserArn:  "arn:aws:iam::111122223333:user/both-user",
+						Username: "both-user",
+						Groups:   []string{"view"},
+					}))
+					roles, err := getMapRolesFromConfigMap(cm)
+					g.Expect(err).NotTo(HaveOccurred())
+					g.Expect(roles).To(ContainElement(awsauthv1alpha1.MapRoleItem{
+						RoleArn:  "arn:aws:iam::111122223333:role/both-role",
+						Username: "both-role-user",
+						Groups:   []string{"edit"},
+					}))
+				},
+			),
+		)
 	})
 
 	Context("when multiple AWSAuthItems exist", func() {
-		var items []*awsauthv1alpha1.AWSAuthItem
-
-		AfterEach(func() {
-			for _, item := range items {
-				if item != nil {
-					err := k8sClient.Delete(ctx, item)
-					if err != nil && !apierrors.IsNotFound(err) {
-						Expect(err).NotTo(HaveOccurred())
-					}
-				}
-			}
-			// Wait for all deletions
-			for _, item := range items {
-				if item != nil {
-					Eventually(func() bool {
-						err := k8sClient.Get(ctx, client.ObjectKeyFromObject(item), item)
-						return apierrors.IsNotFound(err)
-					}).Should(BeTrue())
-				}
-			}
-			items = nil
-		})
-
 		It("should aggregate all mapRoles and mapUsers", func() {
 			userItem := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
@@ -258,8 +333,8 @@ var _ = Describe("AWSAuthItem controller", func() {
 					},
 				},
 			}
-			items = append(items, userItem)
 			Expect(k8sClient.Create(ctx, userItem)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, userItem)
 
 			roleItem := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
@@ -276,8 +351,8 @@ var _ = Describe("AWSAuthItem controller", func() {
 					},
 				},
 			}
-			items = append(items, roleItem)
 			Expect(k8sClient.Create(ctx, roleItem)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, roleItem)
 
 			mixedItem := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
@@ -301,8 +376,8 @@ var _ = Describe("AWSAuthItem controller", func() {
 					},
 				},
 			}
-			items = append(items, mixedItem)
 			Expect(k8sClient.Create(ctx, mixedItem)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, mixedItem)
 
 			// All expected users from userItem and mixedItem
 			expectedUsers := append(userItem.Spec.MapUsers, mixedItem.Spec.MapUsers...)
@@ -323,6 +398,7 @@ var _ = Describe("AWSAuthItem controller", func() {
 			}).Should(Succeed())
 
 			// Verify all items are Ready
+			items := []*awsauthv1alpha1.AWSAuthItem{userItem, roleItem, mixedItem}
 			for _, item := range items {
 				Eventually(func(g Gomega) {
 					var fetched awsauthv1alpha1.AWSAuthItem
@@ -331,26 +407,91 @@ var _ = Describe("AWSAuthItem controller", func() {
 				}).Should(Succeed())
 			}
 		})
-	})
 
-	Context("when updating an AWSAuthItem", func() {
-		var item *awsauthv1alpha1.AWSAuthItem
+		It("should aggregate items from different namespaces", func() {
+			// Create a namespace for this test
+			testNs := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: uniqueName("test-ns"),
+				},
+			}
+			Expect(k8sClient.Create(ctx, testNs)).To(Succeed())
+			DeferCleanup(func() {
+				_ = k8sClient.Delete(ctx, testNs)
+			})
 
-		AfterEach(func() {
-			if item != nil {
-				err := k8sClient.Delete(ctx, item)
-				if err != nil && !apierrors.IsNotFound(err) {
-					Expect(err).NotTo(HaveOccurred())
-				}
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(item), item)
-					return apierrors.IsNotFound(err)
-				}).Should(BeTrue())
+			// Item in kube-system (same as ConfigMap)
+			kubeSystemItem := &awsauthv1alpha1.AWSAuthItem{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      uniqueName("ns-kube-system"),
+					Namespace: reconciler.AWSAuthConfigMapNamespace,
+				},
+				Spec: awsauthv1alpha1.AWSAuthItemSpec{
+					MapUsers: []awsauthv1alpha1.MapUserItem{
+						{
+							UserArn:  "arn:aws:iam::111122223333:user/kube-system-user",
+							Username: "kube-system-user",
+							Groups:   []string{"system:masters"},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, kubeSystemItem)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, kubeSystemItem)
+
+			// Item in different namespace
+			otherNsItem := &awsauthv1alpha1.AWSAuthItem{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      uniqueName("ns-other"),
+					Namespace: testNs.Name,
+				},
+				Spec: awsauthv1alpha1.AWSAuthItemSpec{
+					MapUsers: []awsauthv1alpha1.MapUserItem{
+						{
+							UserArn:  "arn:aws:iam::111122223333:user/other-ns-user",
+							Username: "other-ns-user",
+							Groups:   []string{"view"},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, otherNsItem)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, otherNsItem)
+
+			// Verify both items contribute to ConfigMap
+			Eventually(func(g Gomega) {
+				cm, err := getAWSAuthConfigMap()
+				g.Expect(err).NotTo(HaveOccurred())
+
+				users, err := getMapUsersFromConfigMap(cm)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(users).To(ContainElement(awsauthv1alpha1.MapUserItem{
+					UserArn:  "arn:aws:iam::111122223333:user/kube-system-user",
+					Username: "kube-system-user",
+					Groups:   []string{"system:masters"},
+				}))
+				g.Expect(users).To(ContainElement(awsauthv1alpha1.MapUserItem{
+					UserArn:  "arn:aws:iam::111122223333:user/other-ns-user",
+					Username: "other-ns-user",
+					Groups:   []string{"view"},
+				}))
+			}).Should(Succeed())
+
+			// Verify both items become Ready
+			for _, item := range []*awsauthv1alpha1.AWSAuthItem{kubeSystemItem, otherNsItem} {
+				Eventually(func(g Gomega) {
+					var fetched awsauthv1alpha1.AWSAuthItem
+					g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(item), &fetched)).To(Succeed())
+					g.Expect(apimeta.IsStatusConditionTrue(fetched.Status.Conditions, awsauthv1alpha1.ReadyCondition)).To(BeTrue())
+				}).Should(Succeed())
 			}
 		})
 
+	})
+
+	Context("when updating an AWSAuthItem", func() {
 		It("should update ConfigMap with new values", func() {
-			item = &awsauthv1alpha1.AWSAuthItem{
+			item := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      uniqueName("update-test"),
 					Namespace: reconciler.AWSAuthConfigMapNamespace,
@@ -366,6 +507,7 @@ var _ = Describe("AWSAuthItem controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, item)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, item)
 
 			// Wait for Ready
 			Eventually(func(g Gomega) {
@@ -403,28 +545,66 @@ var _ = Describe("AWSAuthItem controller", func() {
 				}
 			}).Should(Succeed())
 		})
+
+		It("should update ObservedGeneration after spec change", func() {
+			item := &awsauthv1alpha1.AWSAuthItem{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      uniqueName("obs-gen-update-test"),
+					Namespace: reconciler.AWSAuthConfigMapNamespace,
+				},
+				Spec: awsauthv1alpha1.AWSAuthItemSpec{
+					MapUsers: []awsauthv1alpha1.MapUserItem{
+						{
+							UserArn:  "arn:aws:iam::111122223333:user/obs-gen-original",
+							Username: "obs-gen-original",
+							Groups:   []string{"system:masters"},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, item)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, item)
+
+			// Wait for Ready and record initial generation
+			var initialGeneration int64
+			Eventually(func(g Gomega) {
+				var fetched awsauthv1alpha1.AWSAuthItem
+				g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(item), &fetched)).To(Succeed())
+				g.Expect(apimeta.IsStatusConditionTrue(fetched.Status.Conditions, awsauthv1alpha1.ReadyCondition)).To(BeTrue())
+				g.Expect(fetched.Status.ObservedGeneration).To(Equal(fetched.Generation))
+				initialGeneration = fetched.Generation
+			}).Should(Succeed())
+
+			// Update spec (change mapUsers)
+			var toUpdate awsauthv1alpha1.AWSAuthItem
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(item), &toUpdate)).To(Succeed())
+			toUpdate.Spec.MapUsers = []awsauthv1alpha1.MapUserItem{
+				{
+					UserArn:  "arn:aws:iam::111122223333:user/obs-gen-updated",
+					Username: "obs-gen-updated",
+					Groups:   []string{"view"},
+				},
+			}
+			Expect(k8sClient.Update(ctx, &toUpdate)).To(Succeed())
+
+			// Verify ObservedGeneration equals new Generation
+			Eventually(func(g Gomega) {
+				var fetched awsauthv1alpha1.AWSAuthItem
+				g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(item), &fetched)).To(Succeed())
+				// Generation should have increased
+				g.Expect(fetched.Generation).To(BeNumerically(">", initialGeneration))
+				// ObservedGeneration should match new Generation after reconciliation
+				g.Expect(apimeta.IsStatusConditionTrue(fetched.Status.Conditions, awsauthv1alpha1.ReadyCondition)).To(BeTrue())
+				g.Expect(fetched.Status.ObservedGeneration).To(Equal(fetched.Generation))
+			}).Should(Succeed())
+		})
 	})
 
 	Context("when deleting an AWSAuthItem", func() {
-		var remainingItem *awsauthv1alpha1.AWSAuthItem
-
-		AfterEach(func() {
-			if remainingItem != nil {
-				err := k8sClient.Delete(ctx, remainingItem)
-				if err != nil && !apierrors.IsNotFound(err) {
-					Expect(err).NotTo(HaveOccurred())
-				}
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(remainingItem), remainingItem)
-					return apierrors.IsNotFound(err)
-				}).Should(BeTrue())
-			}
-		})
-
 		It("should remove entries from ConfigMap and remove finalizer", func() {
 			// Create a remaining item to ensure cleanup reconciliation triggers
 			// (the controller relies on other items' reconciliation to clean up ConfigMap)
-			remainingItem = &awsauthv1alpha1.AWSAuthItem{
+			remainingItem := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      uniqueName("remaining-item"),
 					Namespace: reconciler.AWSAuthConfigMapNamespace,
@@ -440,6 +620,7 @@ var _ = Describe("AWSAuthItem controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, remainingItem)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, remainingItem)
 
 			// Wait for remaining item to be Ready
 			Eventually(func(g Gomega) {
@@ -526,30 +707,8 @@ var _ = Describe("AWSAuthItem controller", func() {
 	})
 
 	Context("when suspended", func() {
-		var item *awsauthv1alpha1.AWSAuthItem
-
-		AfterEach(func() {
-			if item != nil {
-				// Unsuspend before deletion to ensure cleanup
-				var toUpdate awsauthv1alpha1.AWSAuthItem
-				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(item), &toUpdate); err == nil {
-					toUpdate.Spec.Suspend = false
-					_ = k8sClient.Update(ctx, &toUpdate)
-				}
-
-				err := k8sClient.Delete(ctx, item)
-				if err != nil && !apierrors.IsNotFound(err) {
-					Expect(err).NotTo(HaveOccurred())
-				}
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(item), item)
-					return apierrors.IsNotFound(err)
-				}).Should(BeTrue())
-			}
-		})
-
 		It("should set Ready=False with Suspended reason", func() {
-			item = &awsauthv1alpha1.AWSAuthItem{
+			item := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      uniqueName("suspended-test"),
 					Namespace: reconciler.AWSAuthConfigMapNamespace,
@@ -566,6 +725,15 @@ var _ = Describe("AWSAuthItem controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, item)).To(Succeed())
+			DeferCleanup(func() {
+				// Unsuspend before deletion to ensure cleanup
+				var toUpdate awsauthv1alpha1.AWSAuthItem
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(item), &toUpdate); err == nil {
+					toUpdate.Spec.Suspend = false
+					_ = k8sClient.Update(ctx, &toUpdate)
+				}
+				cleanupAWSAuthItem(item)
+			})
 
 			Eventually(func(g Gomega) {
 				var fetched awsauthv1alpha1.AWSAuthItem
@@ -579,7 +747,7 @@ var _ = Describe("AWSAuthItem controller", func() {
 		})
 
 		It("should resume reconciliation when unsuspended", func() {
-			item = &awsauthv1alpha1.AWSAuthItem{
+			item := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      uniqueName("resume-test"),
 					Namespace: reconciler.AWSAuthConfigMapNamespace,
@@ -596,6 +764,15 @@ var _ = Describe("AWSAuthItem controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, item)).To(Succeed())
+			DeferCleanup(func() {
+				// Unsuspend before deletion to ensure cleanup
+				var toUpdate awsauthv1alpha1.AWSAuthItem
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(item), &toUpdate); err == nil {
+					toUpdate.Spec.Suspend = false
+					_ = k8sClient.Update(ctx, &toUpdate)
+				}
+				cleanupAWSAuthItem(item)
+			})
 
 			// Wait for Suspended status
 			Eventually(func(g Gomega) {
@@ -621,29 +798,17 @@ var _ = Describe("AWSAuthItem controller", func() {
 		})
 	})
 
+	// This test implicitly verifies the findObjectsForConfigMap watch handler
+	// by confirming that external ConfigMap modifications trigger reconciliation
+	// of all AWSAuthItems that reference it.
 	Context("when ConfigMap is modified externally", func() {
-		var item *awsauthv1alpha1.AWSAuthItem
-
-		AfterEach(func() {
-			if item != nil {
-				err := k8sClient.Delete(ctx, item)
-				if err != nil && !apierrors.IsNotFound(err) {
-					Expect(err).NotTo(HaveOccurred())
-				}
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(item), item)
-					return apierrors.IsNotFound(err)
-				}).Should(BeTrue())
-			}
-		})
-
 		It("should reconcile back to desired state", func() {
 			expectedUser := awsauthv1alpha1.MapUserItem{
 				UserArn:  "arn:aws:iam::111122223333:user/external-mod-user",
 				Username: "external-mod-user",
 				Groups:   []string{"system:masters"},
 			}
-			item = &awsauthv1alpha1.AWSAuthItem{
+			item := &awsauthv1alpha1.AWSAuthItem{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      uniqueName("external-mod-test"),
 					Namespace: reconciler.AWSAuthConfigMapNamespace,
@@ -653,6 +818,7 @@ var _ = Describe("AWSAuthItem controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, item)).To(Succeed())
+			DeferCleanup(cleanupAWSAuthItem, item)
 
 			// Wait for Ready and verify ConfigMap has correct data
 			Eventually(func(g Gomega) {

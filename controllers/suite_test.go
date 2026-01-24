@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -43,11 +44,12 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
-	k8sClient  client.Client
-	testEnv    *envtest.Environment
-	ctx        context.Context
-	cancel     context.CancelFunc
-	reconciler *AWSAuthItemReconciler
+	k8sClient    client.Client
+	testEnv      *envtest.Environment
+	ctx          context.Context
+	cancel       context.CancelFunc
+	reconciler   *AWSAuthItemReconciler
+	fakeRecorder *record.FakeRecorder
 )
 
 func TestAPIs(t *testing.T) {
@@ -87,10 +89,13 @@ var _ = BeforeSuite(func(suiteCtx SpecContext) {
 	Expect(k8sManager).NotTo(BeNil())
 	Expect(err).NotTo(HaveOccurred())
 
+	// Create a fake recorder with buffer of 100 events for testing
+	fakeRecorder = record.NewFakeRecorder(100)
+
 	reconciler = &AWSAuthItemReconciler{
 		Client:                    k8sManager.GetClient(),
 		Scheme:                    k8sManager.GetScheme(),
-		Recorder:                  k8sManager.GetEventRecorderFor("awsauthitem-controller"),
+		Recorder:                  fakeRecorder,
 		AWSAuthConfigMapName:      "aws-auth-dryrun",
 		AWSAuthConfigMapNamespace: "kube-system",
 	}
@@ -168,4 +173,16 @@ func getMapUsersFromConfigMap(cm *corev1.ConfigMap) ([]awsauthv1alpha1.MapUserIt
 		return nil, err
 	}
 	return users, nil
+}
+
+// drainEvents removes all events from the fake recorder's channel.
+// Call this before a test that needs to verify events to ensure a clean slate.
+func drainEvents() {
+	for {
+		select {
+		case <-fakeRecorder.Events:
+		default:
+			return
+		}
+	}
 }
