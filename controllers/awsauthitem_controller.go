@@ -201,10 +201,14 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 		return ctrl.Result{Requeue: true}, fmt.Errorf("listing AWSAuthItems: %w", err)
 	}
 
-	// Get all the mapRoles and mapUsers
+	// Get all the mapRoles and mapUsers, excluding items being deleted
 	var mapRoles []awsauthv1alpha1.MapRoleItem
 	var mapUsers []awsauthv1alpha1.MapUserItem
 	for _, i := range itemList.Items {
+		// Skip items that are being deleted
+		if !i.DeletionTimestamp.IsZero() {
+			continue
+		}
 		mapRoles = append(mapRoles, i.Spec.MapRoles...)
 		mapUsers = append(mapUsers, i.Spec.MapUsers...)
 	}
@@ -260,29 +264,53 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 }
 
 func (r *AWSAuthItemReconciler) reconcileDelete(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) (ctrl.Result, error) {
-	// Reset the annotations to trigger a reconciliation
-	authCm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.AWSAuthConfigMapName,
-			Namespace: r.AWSAuthConfigMapNamespace,
-		},
-	}
+	log := log.FromContext(ctx)
 
-	if err := r.Get(ctx, client.ObjectKeyFromObject(&authCm), &authCm); err != nil {
+	// Get the aws-auth ConfigMap
+	var authCm corev1.ConfigMap
+	if err := r.Get(ctx, types.NamespacedName{Name: r.AWSAuthConfigMapName, Namespace: r.AWSAuthConfigMapNamespace}, &authCm); err != nil {
 		return ctrl.Result{}, fmt.Errorf("fetching aws-auth ConfigMap during deletion: %w", err)
 	}
 
-	patch := client.MergeFrom(authCm.DeepCopy())
-	if authCm.Annotations == nil {
-		authCm.Annotations = make(map[string]string)
+	// Get all remaining AWSAuthItems (excluding this one and any being deleted)
+	var itemList awsauthv1alpha1.AWSAuthItemList
+	if err := r.List(ctx, &itemList); err != nil {
+		return ctrl.Result{}, fmt.Errorf("listing AWSAuthItems during deletion: %w", err)
 	}
 
-	authCm.Annotations[MapRolesAnnotation] = ""
-	authCm.Annotations[MapUsersAnnotation] = ""
+	// Aggregate data from all remaining items, excluding items being deleted
+	var mapRoles []awsauthv1alpha1.MapRoleItem
+	var mapUsers []awsauthv1alpha1.MapUserItem
+	for _, i := range itemList.Items {
+		// Skip this item and any others being deleted
+		if !i.DeletionTimestamp.IsZero() {
+			continue
+		}
+		mapRoles = append(mapRoles, i.Spec.MapRoles...)
+		mapUsers = append(mapUsers, i.Spec.MapUsers...)
+	}
+
+	// Marshal the objects
+	mapRolesYaml, err := yaml.Marshal(mapRoles)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("marshaling mapRoles during deletion: %w", err)
+	}
+
+	mapUsersYaml, err := yaml.Marshal(mapUsers)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("marshaling mapUsers during deletion: %w", err)
+	}
+
+	// Update the ConfigMap with the aggregated data (excluding deleted item)
+	patch := client.MergeFrom(authCm.DeepCopy())
+	authCm.Data["mapRoles"] = string(mapRolesYaml)
+	authCm.Data["mapUsers"] = string(mapUsersYaml)
 
 	if err := r.Patch(ctx, &authCm, patch); err != nil {
 		return ctrl.Result{}, fmt.Errorf("patching aws-auth ConfigMap during deletion: %w", err)
 	}
+
+	log.Info("removed item data from aws-auth ConfigMap")
 
 	controllerutil.RemoveFinalizer(&item, awsauthv1alpha1.AWSAuthFinalizer)
 	if err := r.Update(ctx, &item); err != nil {
