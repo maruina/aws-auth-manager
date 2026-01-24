@@ -255,7 +255,6 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 		"aws-auth ConfigMap updated successfully")
 	item.Status.ObservedGeneration = item.Generation
 	item.AWSAuthItemReady()
-	item.ClearStalledCondition()
 	if err := r.patchStatus(ctx, item); err != nil {
 		return ctrl.Result{Requeue: true}, fmt.Errorf("patching status: %w", err)
 	}

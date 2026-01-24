@@ -31,13 +31,6 @@ const (
 	// ReadyCondition is the name of the Ready condition implemented by all toolkit
 	// resources.
 	ReadyCondition string = "Ready"
-
-	// ReconcilingCondition is the name of the Reconciling kstatus condition.
-	ReconcilingCondition string = "Reconciling"
-
-	// StalledCondition is the name of the Stalled kstatus condition.
-	// This is set when reconciliation is blocked for a non-transient reason.
-	StalledCondition string = "Stalled"
 )
 
 const (
@@ -56,10 +49,6 @@ const (
 	// SuspendedReason represents the fact that the reconciliation of a toolkit
 	// resource is suspended.
 	SuspendedReason string = "Suspended"
-
-	// StalledReason represents the fact that the reconciliation of a toolkit
-	// resource has stalled due to a non-transient error.
-	StalledReason string = "Stalled"
 )
 
 // AWSAuthItemSpec defines the desired state of AWSAuthItem.
@@ -154,18 +143,6 @@ func (r *AWSAuthItem) AWSAuthItemReady() {
 func (r *AWSAuthItem) AWSAuthItemSuspended() {
 	r.SetResourceCondition(ReadyCondition, metav1.ConditionFalse, SuspendedReason,
 		"Reconciliation is suspended")
-}
-
-// AWSAuthItemStalled registers a stalled reconciliation of the given AWSAuthItem.
-// Use this for non-transient errors that require user intervention.
-func (r *AWSAuthItem) AWSAuthItemStalled(reason, message string) {
-	r.SetResourceCondition(StalledCondition, metav1.ConditionTrue, reason, message)
-}
-
-// ClearStalledCondition removes the Stalled condition from the AWSAuthItem.
-func (r *AWSAuthItem) ClearStalledCondition() {
-	r.SetResourceCondition(StalledCondition, metav1.ConditionFalse, ReconciliationSucceededReason,
-		"Reconciliation succeeded")
 }
 
 // SetResourceCondition sets the given condition with the given status,
