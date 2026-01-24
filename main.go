@@ -82,6 +82,7 @@ func main() {
 	if err = (&controllers.AWSAuthItemReconciler{
 		Client:                    mgr.GetClient(),
 		Scheme:                    mgr.GetScheme(),
+		Recorder:                  mgr.GetEventRecorderFor("awsauthitem-controller"),
 		AWSAuthConfigMapName:      AWSAuthConfigMapName,
 		AWSAuthConfigMapNamespace: AWSAuthConfigMapNamespace,
 	}).SetupWithManager(mgr); err != nil {

@@ -7,6 +7,4 @@ const (
 	ListAWSAuthItemFailedReason        = "ListAWSAuthItemFailed"
 	MarshalMapRolesFailedReason        = "MarshalMapRolesFailed"
 	MarshalMapUsersFailedReason        = "MarshalMapUsersFailed"
-	HashMapUsersFailedReason           = "HashMapUsersFailed"
-	HashMapRolesFailedReason           = "HashMapRolesFailed"
 )

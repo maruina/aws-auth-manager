@@ -4,7 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: aws-auth-manager-system/aws-auth-manager-serving-cert
-    controller-gen.kubebuilder.io/version: v0.7.0
+    controller-gen.kubebuilder.io/version: v0.17.2
   name: awsauthitems.aws.maruina.k8s
 spec:
   conversion:
@@ -22,41 +22,71 @@ spec:
     kind: AWSAuthItem
     listKind: AWSAuthItemList
     plural: awsauthitems
+    shortNames:
+    - aai
     singular: awsauthitem
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: Ready
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].reason
+      name: Status
+      type: string
+    - jsonPath: .spec.suspend
+      name: Suspended
+      type: boolean
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: AWSAuthItem is the Schema for the awsauthitems API
+        description: AWSAuthItem is the Schema for the awsauthitems API.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
           spec:
-            description: AWSAuthItemSpec defines the desired state of AWSAuthItem
+            description: AWSAuthItemSpec defines the desired state of AWSAuthItem.
             properties:
               mapRoles:
                 description: MapRoles holds a list of MapRoleItem
                 items:
                   properties:
                     groups:
-                      description: A list of groups within Kubernetes to which the role is mapped
+                      description: A list of groups within Kubernetes to which the
+                        role is mapped.
                       items:
                         type: string
                       minItems: 1
                       type: array
                     rolearn:
-                      description: The ARN of the IAM role to add
+                      description: |-
+                        The ARN of the IAM role to add.
+                        Must be a valid IAM role ARN in the format: arn:aws:iam::<account-id>:role/<role-name>
                       minLength: 25
+                      pattern: ^arn:aws:iam::\d{12}:role/.+$
                       type: string
                     username:
-                      description: The user name within Kubernetes to map to the IAM role
+                      description: |-
+                        The user name within Kubernetes to map to the IAM role.
+                        Supports templating with {{EC2PrivateDNSName}} for node roles.
                       minLength: 1
                       type: string
                   required:
@@ -70,17 +100,22 @@ spec:
                 items:
                   properties:
                     groups:
-                      description: A list of groups within Kubernetes to which the user is mapped to
+                      description: A list of groups within Kubernetes to which the
+                        user is mapped.
                       items:
                         type: string
                       minItems: 1
                       type: array
                     userarn:
-                      description: The ARN of the IAM user to add
+                      description: |-
+                        The ARN of the IAM user to add.
+                        Must be a valid IAM user ARN in the format: arn:aws:iam::<account-id>:user/<user-name>
                       minLength: 25
+                      pattern: ^arn:aws:iam::\d{12}:user/.+$
                       type: string
                     username:
-                      description: The user name within Kubernetes to map to the IAM user
+                      description: The user name within Kubernetes to map to the IAM
+                        user.
                       minLength: 1
                       type: string
                   required:
@@ -89,30 +124,50 @@ spec:
                   - username
                   type: object
                 type: array
+              suspend:
+                default: false
+                description: |-
+                  Suspend tells the controller to suspend reconciliation for this AWSAuthItem.
+                  When set to true, the controller will not reconcile this resource.
+                  This is useful when you want to pause updates to the aws-auth ConfigMap.
+                type: boolean
             type: object
           status:
-            description: AWSAuthItemStatus defines the observed state of AWSAuthItem
+            description: AWSAuthItemStatus defines the observed state of AWSAuthItem.
             properties:
               conditions:
                 description: Conditions holds the conditions for the AWSAuthItem.
                 items:
-                  description: "Condition contains details for one aspect of the current state of this API Resource. --- This struct is intended for direct use as an array at the field path .status.conditions.  For example, type FooStatus struct{     // Represents the observations of a foo's current state.     // Known .status.conditions.type are: \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type     // +patchStrategy=merge     // +listType=map     // +listMapKey=type     Conditions []metav1.Condition `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"` \n     // other fields }"
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
-                      description: lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
                       format: date-time
                       type: string
                     message:
-                      description: message is a human readable message indicating details about the transition. This may be an empty string.
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
                       maxLength: 32768
                       type: string
                     observedGeneration:
-                      description: observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
                       format: int64
                       minimum: 0
                       type: integer
                     reason:
-                      description: reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
                       maxLength: 1024
                       minLength: 1
                       pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
@@ -125,7 +180,7 @@ spec:
                       - Unknown
                       type: string
                     type:
-                      description: type of condition in CamelCase or in foo.example.com/CamelCase. --- Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be useful (see .node.status.conditions), the ability to deconflict is important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
@@ -147,9 +202,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

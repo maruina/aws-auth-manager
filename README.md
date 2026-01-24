@@ -11,7 +11,9 @@ The `aws-auth-manager` provides the ability to define multiple `AWSAuthItem` obj
 - Allow to specify name and namespace for the auth configmap to test the controller in an existing installation.
 - Create the `aws-auth` configmap if it's missing.
 - Prevent manual changes to `aws-auth` by triggering a reconciliation loop and rebuilding it.
-- Deploy a validation webhook to validate `userArn` and `roleArn` fields.
+- Deploy a validation webhook to validate `userArn` and `roleArn` fields against AWS IAM ARN patterns.
+- Support for suspending reconciliation per resource via `spec.suspend`.
+- Shortname `aai` for kubectl commands (e.g., `kubectl get aai`).
 
 ## Example `spec`
 
@@ -21,6 +23,7 @@ kind: AWSAuthItem
 metadata:
   name: example-one
 spec:
+  suspend: false  # Set to true to pause reconciliation
   mapRoles:
     - rolearn: arn:aws:iam::111122223333:role/eksctl-my-cluster-nodegroup-standard-wo-NodeInstanceRole-1WP3NUE3O6UCF
       username: system:node:{{EC2PrivateDNSName}}
@@ -41,6 +44,26 @@ spec:
 ## Requirements
 
 - [cert-manager](https://cert-manager.io/docs/)
+
+## Development
+
+### Running Tests
+
+```console
+make test
+```
+
+This runs unit and integration tests using [envtest](https://book.kubebuilder.io/reference/envtest.html) which provides a local control plane (etcd and kube-apiserver) without requiring a full Kubernetes cluster.
+
+### End-to-End Tests
+
+To run e2e tests against a real cluster:
+
+```console
+make setup-e2e   # Creates a kind cluster with cert-manager
+make e2e         # Runs tests against the cluster
+make teardown-e2e # Deletes the kind cluster
+```
 
 ## Install
 
