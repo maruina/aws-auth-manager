@@ -34,6 +34,10 @@ const (
 
 	// ReconcilingCondition is the name of the Reconciling kstatus condition.
 	ReconcilingCondition string = "Reconciling"
+
+	// StalledCondition is the name of the Stalled kstatus condition.
+	// This is set when reconciliation is blocked for a non-transient reason.
+	StalledCondition string = "Stalled"
 )
 
 const (
@@ -52,10 +56,21 @@ const (
 	// SuspendedReason represents the fact that the reconciliation of a toolkit
 	// resource is suspended.
 	SuspendedReason string = "Suspended"
+
+	// StalledReason represents the fact that the reconciliation of a toolkit
+	// resource has stalled due to a non-transient error.
+	StalledReason string = "Stalled"
 )
 
 // AWSAuthItemSpec defines the desired state of AWSAuthItem.
 type AWSAuthItemSpec struct {
+	// Suspend tells the controller to suspend reconciliation for this AWSAuthItem.
+	// When set to true, the controller will not reconcile this resource.
+	// This is useful when you want to pause updates to the aws-auth ConfigMap.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	Suspend bool `json:"suspend,omitempty"`
+
 	// MapRoles holds a list of MapRoleItem
 	//+kubebuilder:validation:Optional
 	MapRoles []MapRoleItem `json:"mapRoles,omitempty"`
@@ -66,36 +81,41 @@ type AWSAuthItemSpec struct {
 }
 
 type MapRoleItem struct {
-	// The ARN of the IAM role to add
-	//+kubebuilder:validation:Required
-	//+kubebuilder:validation:MinLength=25
+	// The ARN of the IAM role to add.
+	// Must be a valid IAM role ARN in the format: arn:aws:iam::<account-id>:role/<role-name>
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=25
+	// +kubebuilder:validation:Pattern=`^arn:aws:iam::\d{12}:role/.+$`
 	RoleArn string `json:"rolearn"`
 
-	// The user name within Kubernetes to map to the IAM role
-	//+kubebuilder:validation:Required
-	//+kubebuilder:validation:MinLength=1
+	// The user name within Kubernetes to map to the IAM role.
+	// Supports templating with {{EC2PrivateDNSName}} for node roles.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Username string `json:"username"`
 
-	// A list of groups within Kubernetes to which the role is mapped
-	//+kubebuilder:validation:Required
-	//+kubebuilder:validation:MinItems=1
+	// A list of groups within Kubernetes to which the role is mapped.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinItems=1
 	Groups []string `json:"groups"`
 }
 
 type MapUserItem struct {
-	// The ARN of the IAM user to add
-	//+kubebuilder:validation:Required
-	//+kubebuilder:validation:MinLength=25
+	// The ARN of the IAM user to add.
+	// Must be a valid IAM user ARN in the format: arn:aws:iam::<account-id>:user/<user-name>
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=25
+	// +kubebuilder:validation:Pattern=`^arn:aws:iam::\d{12}:user/.+$`
 	UserArn string `json:"userarn"`
 
-	// The user name within Kubernetes to map to the IAM user
-	//+kubebuilder:validation:Required
-	//+kubebuilder:validation:MinLength=1
+	// The user name within Kubernetes to map to the IAM user.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Username string `json:"username"`
 
-	// A list of groups within Kubernetes to which the user is mapped to
-	//+kubebuilder:validation:Required
-	//+kubebuilder:validation:MinItems=1
+	// A list of groups within Kubernetes to which the user is mapped.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinItems=1
 	Groups []string `json:"groups"`
 }
 
@@ -130,6 +150,24 @@ func (r *AWSAuthItem) AWSAuthItemReady() {
 		"Item reconciliation succeeded")
 }
 
+// AWSAuthItemSuspended registers a suspended reconciliation of the given AWSAuthItem.
+func (r *AWSAuthItem) AWSAuthItemSuspended() {
+	r.SetResourceCondition(ReadyCondition, metav1.ConditionFalse, SuspendedReason,
+		"Reconciliation is suspended")
+}
+
+// AWSAuthItemStalled registers a stalled reconciliation of the given AWSAuthItem.
+// Use this for non-transient errors that require user intervention.
+func (r *AWSAuthItem) AWSAuthItemStalled(reason, message string) {
+	r.SetResourceCondition(StalledCondition, metav1.ConditionTrue, reason, message)
+}
+
+// ClearStalledCondition removes the Stalled condition from the AWSAuthItem.
+func (r *AWSAuthItem) ClearStalledCondition() {
+	r.SetResourceCondition(StalledCondition, metav1.ConditionFalse, ReconciliationSucceededReason,
+		"Reconciliation succeeded")
+}
+
 // SetResourceCondition sets the given condition with the given status,
 // reason and message on a resource.
 func (r *AWSAuthItem) SetResourceCondition(condition string, status metav1.ConditionStatus, reason, message string) {
@@ -152,6 +190,11 @@ func (r *AWSAuthItem) GetStatusConditions() *[]metav1.Condition {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:shortName=aai
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+//+kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
+//+kubebuilder:printcolumn:name="Suspended",type="boolean",JSONPath=".spec.suspend"
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // AWSAuthItem is the Schema for the awsauthitems API.
 type AWSAuthItem struct {

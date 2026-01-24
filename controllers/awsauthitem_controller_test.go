@@ -94,7 +94,7 @@ var _ = Describe("AWSAuth controller", func() {
 			var res awsauthv1alpha1.AWSAuthItem
 
 			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&authCm), &authCm)
-			_ = yaml.Unmarshal([]byte(authCm.Data["MapUsers"]), &res.Spec.MapUsers)
+			_ = yaml.Unmarshal([]byte(authCm.Data["mapUsers"]), &res.Spec.MapUsers)
 
 			return res.Spec.MapUsers
 		}).Should(Equal(expectedMapUsers))
@@ -104,7 +104,7 @@ var _ = Describe("AWSAuth controller", func() {
 			var res awsauthv1alpha1.AWSAuthItem
 
 			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&authCm), &authCm)
-			_ = yaml.Unmarshal([]byte(authCm.Data["MapRoles"]), &res.Spec.MapRoles)
+			_ = yaml.Unmarshal([]byte(authCm.Data["mapRoles"]), &res.Spec.MapRoles)
 
 			return res.Spec.MapRoles
 		}).Should(Equal(expectedMapRoles))
@@ -135,7 +135,7 @@ var _ = Describe("AWSAuth controller", func() {
 			var res awsauthv1alpha1.AWSAuthItem
 
 			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&authCm), &authCm)
-			_ = yaml.Unmarshal([]byte(authCm.Data["MapUsers"]), &res.Spec.MapUsers)
+			_ = yaml.Unmarshal([]byte(authCm.Data["mapUsers"]), &res.Spec.MapUsers)
 
 			return res.Spec.MapUsers
 		}).Should(Equal(userItem.Spec.MapUsers))
@@ -144,7 +144,7 @@ var _ = Describe("AWSAuth controller", func() {
 			var res awsauthv1alpha1.AWSAuthItem
 
 			_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(&authCm), &authCm)
-			_ = yaml.Unmarshal([]byte(authCm.Data["MapRoles"]), &res.Spec.MapRoles)
+			_ = yaml.Unmarshal([]byte(authCm.Data["mapRoles"]), &res.Spec.MapRoles)
 
 			return res.Spec.MapRoles
 		}).Should(Equal(roleItem.Spec.MapRoles))

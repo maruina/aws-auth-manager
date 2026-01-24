@@ -85,6 +85,7 @@ var _ = BeforeSuite(func(suiteCtx SpecContext) {
 	reconciler = &AWSAuthItemReconciler{
 		Client:                    k8sManager.GetClient(),
 		Scheme:                    k8sManager.GetScheme(),
+		Recorder:                  k8sManager.GetEventRecorderFor("awsauthitem-controller"),
 		AWSAuthConfigMapName:      "aws-auth-dryrun",
 		AWSAuthConfigMapNamespace: "kube-system",
 	}

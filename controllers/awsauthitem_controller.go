@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,6 +42,7 @@ import (
 type AWSAuthItemReconciler struct {
 	client.Client
 	Scheme                    *runtime.Scheme
+	Recorder                  record.EventRecorder
 	AWSAuthConfigMapName      string
 	AWSAuthConfigMapNamespace string
 }
@@ -54,6 +56,7 @@ const (
 //+kubebuilder:rbac:groups=aws.maruina.k8s,resources=awsauthitems/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=aws.maruina.k8s,resources=awsauthitems/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -67,8 +70,6 @@ func (r *AWSAuthItemReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Get the AWSAuthItem
 	var item awsauthv1alpha1.AWSAuthItem
 	if err := r.Get(ctx, req.NamespacedName, &item); err != nil {
-		log.Error(err, "unable to fetch the AWSAuthItem object")
-
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -76,9 +77,7 @@ func (r *AWSAuthItemReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if !controllerutil.ContainsFinalizer(&item, awsauthv1alpha1.AWSAuthFinalizer) {
 		controllerutil.AddFinalizer(&item, awsauthv1alpha1.AWSAuthFinalizer)
 		if err := r.Update(ctx, &item); err != nil {
-			log.Error(err, "unable to update the AWSAuthItem object when adding finalizer")
-
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("adding finalizer: %w", err)
 		}
 	}
 
@@ -132,12 +131,25 @@ func (r *AWSAuthItemReconciler) findObjectsForConfigMap(ctx context.Context, obj
 func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
+	// Handle suspension
+	if item.Spec.Suspend {
+		log.Info("reconciliation is suspended for this resource")
+		r.Recorder.Event(&item, corev1.EventTypeNormal, awsauthv1alpha1.SuspendedReason,
+			"Reconciliation is suspended")
+		item.AWSAuthItemSuspended()
+		if err := r.patchStatus(ctx, item); err != nil {
+			return ctrl.Result{}, fmt.Errorf("patching status for suspended: %w", err)
+		}
+
+		return ctrl.Result{}, nil
+	}
+
 	// Observe AWSAuthItem generation
 	if item.Status.ObservedGeneration != item.Generation {
 		item.Status.ObservedGeneration = item.Generation
 		item.AWSAuthItemProgressing()
 		if err := r.patchStatus(ctx, item); err != nil {
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{Requeue: true}, fmt.Errorf("patching status for progressing: %w", err)
 		}
 
 		return ctrl.Result{Requeue: true}, nil
@@ -158,44 +170,46 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 				},
 			},
 			Data: map[string]string{
-				"MapUsers": "",
-				"MapRoles": "",
+				"mapUsers": "",
+				"mapRoles": "",
 			},
 		}
 
-		createErr := r.Create(ctx, &authCm)
-		if createErr != nil {
-			log.Error(createErr, fmt.Sprintf("unable to created %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
+		if err := r.Create(ctx, &authCm); err != nil {
+			r.Recorder.Eventf(&item, corev1.EventTypeWarning, awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason,
+				"Failed to create aws-auth ConfigMap: %s", err.Error())
 			item.AWSAuthItemNotReady(awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason, err.Error())
-			if err := r.patchStatus(ctx, item); err != nil {
-				return ctrl.Result{}, err
+			if statusErr := r.patchStatus(ctx, item); statusErr != nil {
+				log.Error(statusErr, "failed to patch status after ConfigMap creation failure")
 			}
 
-			return ctrl.Result{}, createErr
+			return ctrl.Result{}, fmt.Errorf("creating aws-auth ConfigMap: %w", err)
 		}
 
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	// Return if there is an error creating the aws auth configmap
+	// Return if there is an error fetching the aws auth configmap
 	if err != nil {
-		log.Error(err, fmt.Sprintf("unable to fetch %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
+		r.Recorder.Eventf(&item, corev1.EventTypeWarning, awsauthv1alpha1.GetAwsAuthConfigMapFailedReason,
+			"Failed to fetch aws-auth ConfigMap: %s", err.Error())
 		item.AWSAuthItemNotReady(awsauthv1alpha1.GetAwsAuthConfigMapFailedReason, err.Error())
-		if err := r.patchStatus(ctx, item); err != nil {
-			return ctrl.Result{}, err
+		if statusErr := r.patchStatus(ctx, item); statusErr != nil {
+			log.Error(statusErr, "failed to patch status after ConfigMap fetch failure")
 		}
 
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("fetching aws-auth ConfigMap: %w", err)
 	}
 
 	// Get all the AWSAuthItem
 	var itemList awsauthv1alpha1.AWSAuthItemList
 	if err := r.List(ctx, &itemList); err != nil {
-		log.Error(err, "unable to list the AWSAuthItem objects")
 		item.AWSAuthItemNotReady(awsauthv1alpha1.ListAWSAuthItemFailedReason, err.Error())
-		if err := r.patchStatus(ctx, item); err != nil {
-			return ctrl.Result{Requeue: true}, err
+		if statusErr := r.patchStatus(ctx, item); statusErr != nil {
+			log.Error(statusErr, "failed to patch status after listing AWSAuthItems failure")
 		}
+
+		return ctrl.Result{Requeue: true}, fmt.Errorf("listing AWSAuthItems: %w", err)
 	}
 
 	// Get all the mapRoles and mapUsers
@@ -209,49 +223,53 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	// Marshal the objects
 	mapRolesYaml, err := yaml.Marshal(mapRoles)
 	if err != nil {
-		log.Error(err, "unable to marshal mapRoles")
 		item.AWSAuthItemNotReady(awsauthv1alpha1.MarshalMapRolesFailedReason, err.Error())
-		if err := r.patchStatus(ctx, item); err != nil {
-			return ctrl.Result{Requeue: true}, err
+		if statusErr := r.patchStatus(ctx, item); statusErr != nil {
+			log.Error(statusErr, "failed to patch status after mapRoles marshal failure")
 		}
+
+		return ctrl.Result{Requeue: true}, fmt.Errorf("marshaling mapRoles: %w", err)
 	}
 
 	mapUsersYaml, err := yaml.Marshal(mapUsers)
 	if err != nil {
-		log.Error(err, "unable to marshal mapUsers")
-
 		item.AWSAuthItemNotReady(awsauthv1alpha1.MarshalMapUsersFailedReason, err.Error())
-		if err := r.patchStatus(ctx, item); err != nil {
-			return ctrl.Result{Requeue: true}, err
+		if statusErr := r.patchStatus(ctx, item); statusErr != nil {
+			log.Error(statusErr, "failed to patch status after mapUsers marshal failure")
 		}
+
+		return ctrl.Result{Requeue: true}, fmt.Errorf("marshaling mapUsers: %w", err)
 	}
 
-	// Update the configmap
-	authCm.Data["MapRoles"] = string(mapRolesYaml)
-	authCm.Data["MapUsers"] = string(mapUsersYaml)
+	// Update the configmap using Patch to avoid conflicts
+	patch := client.MergeFrom(authCm.DeepCopy())
+	authCm.Data["mapRoles"] = string(mapRolesYaml)
+	authCm.Data["mapUsers"] = string(mapUsersYaml)
 
-	if err := r.Update(ctx, &authCm); err != nil {
-		log.Error(err, fmt.Sprintf("unable to update %s/%s configmap", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
+	if err := r.Patch(ctx, &authCm, patch); err != nil {
+		r.Recorder.Eventf(&item, corev1.EventTypeWarning, awsauthv1alpha1.UpdateAwsAuthConfigMapFailedReason,
+			"Failed to update aws-auth ConfigMap: %s", err.Error())
 		item.AWSAuthItemNotReady(awsauthv1alpha1.UpdateAwsAuthConfigMapFailedReason, err.Error())
-		if err := r.patchStatus(ctx, item); err != nil {
-			return ctrl.Result{Requeue: true}, err
+		if statusErr := r.patchStatus(ctx, item); statusErr != nil {
+			log.Error(statusErr, "failed to patch status after ConfigMap update failure")
 		}
 
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true}, fmt.Errorf("patching aws-auth ConfigMap: %w", err)
 	}
 
+	r.Recorder.Event(&item, corev1.EventTypeNormal, awsauthv1alpha1.ReconciliationSucceededReason,
+		"aws-auth ConfigMap updated successfully")
 	item.AWSAuthItemReady()
+	item.ClearStalledCondition()
 	if err := r.patchStatus(ctx, item); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true}, fmt.Errorf("patching status for ready: %w", err)
 	}
 
 	return ctrl.Result{}, nil
 }
 
 func (r *AWSAuthItemReconciler) reconcileDelete(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-
-	// Reset the annotations on to trigger a reconciliation
+	// Reset the annotations to trigger a reconciliation
 	authCm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      r.AWSAuthConfigMapName,
@@ -260,38 +278,43 @@ func (r *AWSAuthItemReconciler) reconcileDelete(ctx context.Context, item awsaut
 	}
 
 	if err := r.Get(ctx, client.ObjectKeyFromObject(&authCm), &authCm); err != nil {
-		log.Error(err, fmt.Sprintf("unabled to fetch %s/%s configamp when deleting the AWSAuthItem object", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
+		return ctrl.Result{}, fmt.Errorf("fetching aws-auth ConfigMap during deletion: %w", err)
+	}
 
-		return ctrl.Result{}, err
+	patch := client.MergeFrom(authCm.DeepCopy())
+	if authCm.Annotations == nil {
+		authCm.Annotations = make(map[string]string)
 	}
 
 	authCm.Annotations[MapRolesAnnotation] = ""
 	authCm.Annotations[MapUsersAnnotation] = ""
 
-	if err := r.Update(ctx, &authCm); err != nil {
-		log.Error(err, fmt.Sprintf("unable to update %s/%s configmap when deleting the AWSAuthItem object", r.AWSAuthConfigMapNamespace, r.AWSAuthConfigMapName))
+	if err := r.Patch(ctx, &authCm, patch); err != nil {
+		return ctrl.Result{}, fmt.Errorf("patching aws-auth ConfigMap during deletion: %w", err)
 	}
 
 	controllerutil.RemoveFinalizer(&item, awsauthv1alpha1.AWSAuthFinalizer)
 	if err := r.Update(ctx, &item); err != nil {
-		log.Error(err, "unabled to remove finalizer when deleting the AWSAuthItem object")
-
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("removing finalizer: %w", err)
 	}
 
 	return ctrl.Result{}, nil
 }
 
-// patchStatus updates the AWSAuthItem using a MergeFrom strategy.
+// patchStatus updates the AWSAuthItem status using a MergeFrom strategy.
 func (r *AWSAuthItemReconciler) patchStatus(ctx context.Context, item awsauthv1alpha1.AWSAuthItem) error {
 	var latest awsauthv1alpha1.AWSAuthItem
 
 	if err := r.Get(ctx, client.ObjectKeyFromObject(&item), &latest); err != nil {
-		return err
+		return fmt.Errorf("fetching latest AWSAuthItem for status patch: %w", err)
 	}
 
 	patch := client.MergeFrom(latest.DeepCopy())
 	latest.Status = item.Status
 
-	return r.Client.Status().Patch(ctx, &latest, patch)
+	if err := r.Client.Status().Patch(ctx, &latest, patch); err != nil {
+		return fmt.Errorf("patching AWSAuthItem status: %w", err)
+	}
+
+	return nil
 }

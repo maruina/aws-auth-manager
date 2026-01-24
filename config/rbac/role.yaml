@@ -17,6 +17,13 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
   - aws.maruina.k8s
   resources:
   - awsauthitems
