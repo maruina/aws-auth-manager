@@ -24,20 +24,21 @@ import (
 	"testing"
 	"time"
 
-	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/yaml"
+
+	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -49,7 +50,7 @@ var (
 	ctx          context.Context
 	cancel       context.CancelFunc
 	reconciler   *AWSAuthItemReconciler
-	fakeRecorder *record.FakeRecorder
+	fakeRecorder *events.FakeRecorder
 )
 
 func TestAPIs(t *testing.T) {
@@ -90,7 +91,7 @@ var _ = BeforeSuite(func(suiteCtx SpecContext) {
 	Expect(err).NotTo(HaveOccurred())
 
 	// Create a fake recorder with buffer of 100 events for testing
-	fakeRecorder = record.NewFakeRecorder(100)
+	fakeRecorder = events.NewFakeRecorder(100)
 
 	reconciler = &AWSAuthItemReconciler{
 		Client:                    k8sManager.GetClient(),

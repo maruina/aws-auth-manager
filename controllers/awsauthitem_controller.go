@@ -14,19 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package controllers implements the reconciliation logic for AWSAuthItem resources.
 package controllers
 
 import (
 	"context"
 	"fmt"
 
-	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,13 +36,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/yaml"
+
+	awsauthv1alpha1 "github.com/maruina/aws-auth-manager/api/v1alpha1"
 )
 
 // AWSAuthItemReconciler reconciles a AWSAuthItem object.
 type AWSAuthItemReconciler struct {
 	client.Client
 	Scheme                    *runtime.Scheme
-	Recorder                  record.EventRecorder
+	Recorder                  events.EventRecorder
 	AWSAuthConfigMapName      string
 	AWSAuthConfigMapNamespace string
 }
@@ -134,8 +136,8 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	// Handle suspension
 	if item.Spec.Suspend {
 		log.Info("reconciliation is suspended for this resource")
-		r.Recorder.Event(&item, corev1.EventTypeNormal, awsauthv1alpha1.SuspendedReason,
-			"Reconciliation is suspended")
+		r.Recorder.Eventf(&item, nil, corev1.EventTypeNormal, awsauthv1alpha1.SuspendedReason,
+			"Suspended", "Reconciliation is suspended")
 		item.AWSAuthItemSuspended()
 		if err := r.patchStatus(ctx, item); err != nil {
 			return ctrl.Result{}, fmt.Errorf("patching status for suspended: %w", err)
@@ -164,9 +166,10 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 			},
 		}
 
-		if err := r.Create(ctx, &authCm); err != nil {
-			r.Recorder.Eventf(&item, corev1.EventTypeWarning, awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason,
-				"Failed to create aws-auth ConfigMap: %s", err.Error())
+		err = r.Create(ctx, &authCm)
+		if err != nil {
+			r.Recorder.Eventf(&item, nil, corev1.EventTypeWarning, awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason,
+				"CreateFailed", "Failed to create aws-auth ConfigMap: %s", err.Error())
 			item.AWSAuthItemNotReady(awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason, err.Error())
 			if statusErr := r.patchStatus(ctx, item); statusErr != nil {
 				log.Error(statusErr, "failed to patch status after ConfigMap creation failure")
@@ -180,8 +183,8 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 
 	// Return if there is an error fetching the aws auth configmap
 	if err != nil {
-		r.Recorder.Eventf(&item, corev1.EventTypeWarning, awsauthv1alpha1.GetAwsAuthConfigMapFailedReason,
-			"Failed to fetch aws-auth ConfigMap: %s", err.Error())
+		r.Recorder.Eventf(&item, nil, corev1.EventTypeWarning, awsauthv1alpha1.GetAwsAuthConfigMapFailedReason,
+			"GetFailed", "Failed to fetch aws-auth ConfigMap: %s", err.Error())
 		item.AWSAuthItemNotReady(awsauthv1alpha1.GetAwsAuthConfigMapFailedReason, err.Error())
 		if statusErr := r.patchStatus(ctx, item); statusErr != nil {
 			log.Error(statusErr, "failed to patch status after ConfigMap fetch failure")
@@ -192,7 +195,8 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 
 	// Get all the AWSAuthItem
 	var itemList awsauthv1alpha1.AWSAuthItemList
-	if err := r.List(ctx, &itemList); err != nil {
+	err = r.List(ctx, &itemList)
+	if err != nil {
 		item.AWSAuthItemNotReady(awsauthv1alpha1.ListAWSAuthItemFailedReason, err.Error())
 		if statusErr := r.patchStatus(ctx, item); statusErr != nil {
 			log.Error(statusErr, "failed to patch status after listing AWSAuthItems failure")
@@ -240,8 +244,8 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	authCm.Data["mapUsers"] = string(mapUsersYaml)
 
 	if err := r.Patch(ctx, &authCm, patch); err != nil {
-		r.Recorder.Eventf(&item, corev1.EventTypeWarning, awsauthv1alpha1.UpdateAwsAuthConfigMapFailedReason,
-			"Failed to update aws-auth ConfigMap: %s", err.Error())
+		r.Recorder.Eventf(&item, nil, corev1.EventTypeWarning, awsauthv1alpha1.UpdateAwsAuthConfigMapFailedReason,
+			"UpdateFailed", "Failed to update aws-auth ConfigMap: %s", err.Error())
 		item.AWSAuthItemNotReady(awsauthv1alpha1.UpdateAwsAuthConfigMapFailedReason, err.Error())
 		if statusErr := r.patchStatus(ctx, item); statusErr != nil {
 			log.Error(statusErr, "failed to patch status after ConfigMap update failure")
@@ -251,8 +255,8 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	}
 
 	// Update status only after successful reconciliation
-	r.Recorder.Event(&item, corev1.EventTypeNormal, awsauthv1alpha1.ReconciliationSucceededReason,
-		"aws-auth ConfigMap updated successfully")
+	r.Recorder.Eventf(&item, nil, corev1.EventTypeNormal, awsauthv1alpha1.ReconciliationSucceededReason,
+		"Reconciled", "aws-auth ConfigMap updated successfully")
 	item.Status.ObservedGeneration = item.Generation
 	item.AWSAuthItemReady()
 	if err := r.patchStatus(ctx, item); err != nil {
