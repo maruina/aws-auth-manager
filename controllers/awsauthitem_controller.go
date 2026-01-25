@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package controllers implements the reconciliation logic for AWSAuthItem resources.
 package controllers
 
 import (
@@ -165,7 +166,8 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 			},
 		}
 
-		if err := r.Create(ctx, &authCm); err != nil {
+		err = r.Create(ctx, &authCm)
+		if err != nil {
 			r.Recorder.Eventf(&item, corev1.EventTypeWarning, awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason,
 				"Failed to create aws-auth ConfigMap: %s", err.Error())
 			item.AWSAuthItemNotReady(awsauthv1alpha1.CreateAwsAuthConfigMapFailedReason, err.Error())
@@ -193,7 +195,8 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 
 	// Get all the AWSAuthItem
 	var itemList awsauthv1alpha1.AWSAuthItemList
-	if err := r.List(ctx, &itemList); err != nil {
+	err = r.List(ctx, &itemList)
+	if err != nil {
 		item.AWSAuthItemNotReady(awsauthv1alpha1.ListAWSAuthItemFailedReason, err.Error())
 		if statusErr := r.patchStatus(ctx, item); statusErr != nil {
 			log.Error(statusErr, "failed to patch status after listing AWSAuthItems failure")
