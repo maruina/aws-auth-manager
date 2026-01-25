@@ -36,62 +36,60 @@ linters:
     # Prevents loop variable capture issues
     - copyloopvar
 
-linters-settings:
-  errcheck:
-    check-blank: true
+  settings:
+    errcheck:
+      check-blank: true
 
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
 
-  staticcheck:
-    checks:
-      - all
-
-  gosec:
-    excludes:
-      - G104  # Errors unhandled - covered by errcheck
-      - G304  # File path provided as taint input
-      - G402  # TLS InsecureSkipVerify - ok in tests
-
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - performance
-    disabled-checks:
-      - hugeParam
-      - rangeValCopy
-      - commentedOutCode
-
-  nakedret:
-    max-func-lines: 30
-
-  dupl:
-    threshold: 150
-
-  errorlint:
-    asserts: true
-    comparison: true
-
-  misspell:
-    locale: US
-
-issues:
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  exclude-rules:
-    # Test files - exclude noisy linters
-    - path: '(.+)_test\.go'
-      linters:
-        - dupl
-        - errcheck
-        - gocritic
-        - gosec
-    # Generated files
-    - path: zz_generated
-      linters:
+    staticcheck:
+      checks:
         - all
+
+    gosec:
+      excludes:
+        - G104  # Errors unhandled - covered by errcheck
+        - G304  # File path provided as taint input
+        - G402  # TLS InsecureSkipVerify - ok in tests
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+      disabled-checks:
+        - hugeParam
+        - rangeValCopy
+        - commentedOutCode
+
+    nakedret:
+      max-func-lines: 30
+
+    dupl:
+      threshold: 150
+
+    errorlint:
+      asserts: true
+      comparison: true
+
+    misspell:
+      locale: US
+
+  exclusions:
+    rules:
+      # Test files - exclude noisy linters
+      - path: '(.+)_test\.go'
+        linters:
+          - dupl
+          - errcheck
+          - gocritic
+          - gosec
+      # Generated files
+      - path: zz_generated
+        linters:
+          - all
 
 formatters:
   enable:
@@ -101,3 +99,7 @@ formatters:
     goimports:
       local-prefixes:
         - github.com/maruina/aws-auth-manager
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
