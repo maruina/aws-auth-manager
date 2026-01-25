@@ -30,7 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -50,7 +50,7 @@ var (
 	ctx          context.Context
 	cancel       context.CancelFunc
 	reconciler   *AWSAuthItemReconciler
-	fakeRecorder *record.FakeRecorder
+	fakeRecorder *events.FakeRecorder
 )
 
 func TestAPIs(t *testing.T) {
@@ -91,7 +91,7 @@ var _ = BeforeSuite(func(suiteCtx SpecContext) {
 	Expect(err).NotTo(HaveOccurred())
 
 	// Create a fake recorder with buffer of 100 events for testing
-	fakeRecorder = record.NewFakeRecorder(100)
+	fakeRecorder = events.NewFakeRecorder(100)
 
 	reconciler = &AWSAuthItemReconciler{
 		Client:                    k8sManager.GetClient(),
