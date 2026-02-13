@@ -146,7 +146,7 @@ GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/(?<version>.+)$
 KUSTOMIZE_VERSION ?= v5.8.1
 # renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools
-CONTROLLER_TOOLS_VERSION ?= v0.20.0
+CONTROLLER_TOOLS_VERSION ?= v0.20.1
 # renovate: datasource=github-releases depName=golangci/golangci-lint
 GOLANGCI_LINT_VERSION ?= v2.8.0
 
