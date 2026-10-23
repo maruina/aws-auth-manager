@@ -6,7 +6,7 @@ CLUSTER ?= aws-auth-manager
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 ENVTEST_K8S_VERSION = 1.37
 # renovate: datasource=github-releases depName=cert-manager/cert-manager
-CERT_MANAGER_VERSION = v1.21.2
+CERT_MANAGER_VERSION = v1.21.3
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
