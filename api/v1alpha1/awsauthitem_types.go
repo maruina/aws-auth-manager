@@ -190,7 +190,3 @@ type AWSAuthItemList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []AWSAuthItem `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&AWSAuthItem{}, &AWSAuthItemList{})
-}
