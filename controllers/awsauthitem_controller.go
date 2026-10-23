@@ -20,6 +20,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -178,7 +179,9 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 			return ctrl.Result{}, fmt.Errorf("creating aws-auth ConfigMap: %w", err)
 		}
 
-		return ctrl.Result{Requeue: true}, nil
+		// The ConfigMap was just created. Requeue briefly so the next pass
+		// reads it instead of the NotFound error that started this pass.
+		return ctrl.Result{RequeueAfter: time.Second}, nil
 	}
 
 	// Return if there is an error fetching the aws auth configmap
@@ -202,7 +205,7 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 			log.Error(statusErr, "failed to patch status after listing AWSAuthItems failure")
 		}
 
-		return ctrl.Result{Requeue: true}, fmt.Errorf("listing AWSAuthItems: %w", err)
+		return ctrl.Result{}, fmt.Errorf("listing AWSAuthItems: %w", err)
 	}
 
 	// Get all the mapRoles and mapUsers, excluding items being deleted
@@ -225,7 +228,7 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 			log.Error(statusErr, "failed to patch status after mapRoles marshal failure")
 		}
 
-		return ctrl.Result{Requeue: true}, fmt.Errorf("marshaling mapRoles: %w", err)
+		return ctrl.Result{}, fmt.Errorf("marshaling mapRoles: %w", err)
 	}
 
 	mapUsersYaml, err := yaml.Marshal(mapUsers)
@@ -235,7 +238,7 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 			log.Error(statusErr, "failed to patch status after mapUsers marshal failure")
 		}
 
-		return ctrl.Result{Requeue: true}, fmt.Errorf("marshaling mapUsers: %w", err)
+		return ctrl.Result{}, fmt.Errorf("marshaling mapUsers: %w", err)
 	}
 
 	// Update the configmap using Patch to avoid conflicts
@@ -251,7 +254,7 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 			log.Error(statusErr, "failed to patch status after ConfigMap update failure")
 		}
 
-		return ctrl.Result{Requeue: true}, fmt.Errorf("patching aws-auth ConfigMap: %w", err)
+		return ctrl.Result{}, fmt.Errorf("patching aws-auth ConfigMap: %w", err)
 	}
 
 	// Update status only after successful reconciliation
@@ -260,7 +263,7 @@ func (r *AWSAuthItemReconciler) reconcile(ctx context.Context, item awsauthv1alp
 	item.Status.ObservedGeneration = item.Generation
 	item.AWSAuthItemReady()
 	if err := r.patchStatus(ctx, item); err != nil {
-		return ctrl.Result{Requeue: true}, fmt.Errorf("patching status: %w", err)
+		return ctrl.Result{}, fmt.Errorf("patching status: %w", err)
 	}
 
 	return ctrl.Result{}, nil
