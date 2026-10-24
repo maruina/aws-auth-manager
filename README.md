@@ -1,4 +1,9 @@
 # aws-auth-manager
+> **Deprecation notice**
+>
+> Amazon EKS deprecated the `aws-auth` ConfigMap and replaced it with EKS access entries, which are managed through the Amazon EKS API. Use [access entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) for new clusters, and follow the [migration guide](https://docs.aws.amazon.com/eks/latest/userguide/migrating-access-entries.html) to move existing entries. See [Cluster access management](https://docs.aws.amazon.com/eks/latest/best-practices/cluster-access-management.html) for the AWS recommendation and [Grant IAM users access to Kubernetes with a ConfigMap](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html) for the deprecation statement.
+>
+> This controller only helps clusters that still use `CONFIG_MAP` authentication mode. Do not adopt it for new clusters.
 
 A kuberneres controller to manage the `aws-auth` configmap in EKS using a new `AWSAuthItem` CRD.
 
